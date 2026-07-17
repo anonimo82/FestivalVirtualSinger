@@ -1,0 +1,214 @@
+[09:39:48.846] BEGIN PlayDirectSinging
+[09:39:48.854] voice = kal_diphone
+[09:39:48.858] scheme = (singing_init_func)
+@@FESTIVAL_STEP@@
+(set! singing_global_time 0.0)
+@@FESTIVAL_STEP@@
+(set! festival_direct_utt (Utterance Text ""))
+@@FESTIVAL_STEP@@
+(utt.set_feat festival_direct_utt 'type "Tokens")
+@@FESTIVAL_STEP@@
+(utt.relation.create festival_direct_utt 'Token)
+@@FESTIVAL_STEP@@
+(utt.relation.append festival_direct_utt 'Token '("doe" ((name "doe") (whitespace "") (prepunctuation "") (punc ""))))
+@@FESTIVAL_STEP@@
+(set! festival_direct_tokens (utt.relation.items festival_direct_utt 'Token))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 0 festival_direct_tokens) 'freq (list (list (list 261.625565))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 0 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+@@FESTIVAL_STEP@@
+(audio_mode 'shutup)
+@@FESTIVAL_STEP@@
+(audio_mode 'sync)
+@@FESTIVAL_STEP@@
+(utt.synth festival_direct_utt)
+@@FESTIVAL_STEP@@
+(utt.play festival_direct_utt)
+@@FESTIVAL_STEP@@
+(singing_exit_func)
+[09:39:48.869] SelectVoice -> 0x00000000
+[09:39:48.879] ResolveFestivalLibDirectory -> C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\festival_runtime\festival_home\festival\lib
+[09:39:48.883] Set xml_dtd_dir -> 0x00000000
+[09:39:48.883] Set load-path -> 0x00000000
+[09:39:48.890] Load singing-mode.scm -> 0x00000000
+[09:39:48.900] STEP 1 command = (singing_init_func)
+[09:39:48.900] STEP 1 wrapped = (begin (singing_init_func) t)
+[09:39:48.908] STEP 1 result = 0x00000000
+[09:39:48.911] STEP 2 command = (set! singing_global_time 0.0)
+[09:39:48.911] STEP 2 wrapped = (begin (set! singing_global_time 0.0) t)
+[09:39:48.919] STEP 2 result = 0x00000000
+[09:39:48.921] STEP 3 command = (set! festival_direct_utt (Utterance Text ""))
+[09:39:48.921] STEP 3 wrapped = (begin (set! festival_direct_utt (Utterance Text "")) t)
+[09:39:48.931] STEP 3 result = 0x00000000
+[09:39:48.931] STEP 4 command = (utt.set_feat festival_direct_utt 'type "Tokens")
+[09:39:48.939] STEP 4 wrapped = (begin (utt.set_feat festival_direct_utt 'type "Tokens") t)
+[09:39:48.941] STEP 4 result = 0x00000000
+[09:39:48.941] STEP 5 command = (utt.relation.create festival_direct_utt 'Token)
+[09:39:48.952] STEP 5 wrapped = (begin (utt.relation.create festival_direct_utt 'Token) t)
+[09:39:48.952] STEP 5 result = 0x00000000
+[09:39:48.960] STEP 6 command = (utt.relation.append festival_direct_utt 'Token '("doe" ((name "doe") (whitespace "") (prepunctuation "") (punc ""))))
+[09:39:48.961] STEP 6 wrapped = (begin (utt.relation.append festival_direct_utt 'Token '("doe" ((name "doe") (whitespace "") (prepunctuation "") (punc "")))) t)
+[09:39:48.961] STEP 6 result = 0x00000000
+[09:39:48.972] STEP 7 command = (set! festival_direct_tokens (utt.relation.items festival_direct_utt 'Token))
+[09:39:48.972] STEP 7 wrapped = (begin (set! festival_direct_tokens (utt.relation.items festival_direct_utt 'Token)) t)
+[09:39:48.980] STEP 7 result = 0x00000000
+[09:39:48.982] STEP 8 command = (item.set_feat (nth 0 festival_direct_tokens) 'freq (list (list (list 261.625565))))
+[09:39:48.982] STEP 8 wrapped = (begin (item.set_feat (nth 0 festival_direct_tokens) 'freq (list (list (list 261.625565)))) t)
+[09:39:48.992] STEP 8 result = 0x00000000
+[09:39:48.992] STEP 9 command = (item.set_feat (nth 0 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+[09:39:48.992] STEP 9 wrapped = (begin (item.set_feat (nth 0 festival_direct_tokens) 'dur (list (list (list 0.666667)))) t)
+[09:39:49.002] STEP 9 result = 0x00000000
+[09:39:49.002] STEP 10 command = (audio_mode 'shutup)
+[09:39:49.010] STEP 10 wrapped = (begin (audio_mode 'shutup) t)
+[09:39:49.013] STEP 10 result = 0x00000000
+[09:39:49.013] STEP 11 command = (audio_mode 'sync)
+[09:39:49.023] STEP 11 wrapped = (begin (audio_mode 'sync) t)
+[09:39:49.023] STEP 11 result = 0x00000000
+[09:39:49.031] STEP 12 command = (utt.synth festival_direct_utt)
+[09:39:49.033] STEP 12 wrapped = (begin (utt.synth festival_direct_utt) t)
+[09:39:49.069] STEP 12 result = 0x00000000
+[09:39:49.074] STEP 13 command = (utt.play festival_direct_utt)
+[09:39:49.078] STEP 13 wrapped = (begin (utt.play festival_direct_utt) t)
+[09:39:49.845] STEP 13 result = 0x00000000
+[09:39:49.850] STEP 14 command = (singing_exit_func)
+[09:39:49.854] STEP 14 wrapped = (begin (singing_exit_func) t)
+[09:39:49.859] STEP 14 result = 0x00000000
+[09:39:49.863] END PlayDirectSinging S_OK
+[09:39:53.920] BEGIN PlayDirectSinging
+[09:39:53.930] voice = kal_diphone
+[09:39:53.930] scheme = (singing_init_func)
+@@FESTIVAL_STEP@@
+(set! singing_global_time 0.0)
+@@FESTIVAL_STEP@@
+(set! festival_direct_utt (Utterance Text ""))
+@@FESTIVAL_STEP@@
+(utt.set_feat festival_direct_utt 'type "Tokens")
+@@FESTIVAL_STEP@@
+(utt.relation.create festival_direct_utt 'Token)
+@@FESTIVAL_STEP@@
+(utt.relation.append festival_direct_utt 'Token '("doe" ((name "doe") (whitespace "") (prepunctuation "") (punc ""))))
+@@FESTIVAL_STEP@@
+(utt.relation.append festival_direct_utt 'Token '("ray" ((name "ray") (whitespace " ") (prepunctuation "") (punc ""))))
+@@FESTIVAL_STEP@@
+(utt.relation.append festival_direct_utt 'Token '("me" ((name "me") (whitespace " ") (prepunctuation "") (punc ""))))
+@@FESTIVAL_STEP@@
+(utt.relation.append festival_direct_utt 'Token '("fah" ((name "fah") (whitespace " ") (prepunctuation "") (punc ""))))
+@@FESTIVAL_STEP@@
+(utt.relation.append festival_direct_utt 'Token '("so" ((name "so") (whitespace " ") (prepunctuation "") (punc ""))))
+@@FESTIVAL_STEP@@
+(set! festival_direct_tokens (utt.relation.items festival_direct_utt 'Token))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 0 festival_direct_tokens) 'freq (list (list (list 261.625565))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 0 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 1 festival_direct_tokens) 'freq (list (list (list 293.664768))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 1 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 2 festival_direct_tokens) 'freq (list (list (list 329.627557))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 2 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 3 festival_direct_tokens) 'freq (list (list (list 349.228231))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 3 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 4 festival_direct_tokens) 'freq (list (list (list 391.995436))))
+@@FESTIVAL_STEP@@
+(item.set_feat (nth 4 festival_direct_tokens) 'dur (list (list (list 1.333333))))
+@@FESTIVAL_STEP@@
+(audio_mode 'shutup)
+@@FESTIVAL_STEP@@
+(audio_mode 'sync)
+@@FESTIVAL_STEP@@
+(utt.synth festival_direct_utt)
+@@FESTIVAL_STEP@@
+(utt.play festival_direct_utt)
+@@FESTIVAL_STEP@@
+(singing_exit_func)
+[09:39:53.940] SelectVoice -> 0x00000000
+[09:39:53.940] ResolveFestivalLibDirectory -> C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\festival_runtime\festival_home\festival\lib
+[09:39:53.950] Set xml_dtd_dir -> 0x00000000
+[09:39:53.950] Set load-path -> 0x00000000
+[09:39:53.960] Load singing-mode.scm -> 0x00000000
+[09:39:53.960] STEP 1 command = (singing_init_func)
+[09:39:53.969] STEP 1 wrapped = (begin (singing_init_func) t)
+[09:39:53.971] STEP 1 result = 0x00000000
+[09:39:53.979] STEP 2 command = (set! singing_global_time 0.0)
+[09:39:53.981] STEP 2 wrapped = (begin (set! singing_global_time 0.0) t)
+[09:39:53.981] STEP 2 result = 0x00000000
+[09:39:53.991] STEP 3 command = (set! festival_direct_utt (Utterance Text ""))
+[09:39:53.991] STEP 3 wrapped = (begin (set! festival_direct_utt (Utterance Text "")) t)
+[09:39:53.999] STEP 3 result = 0x00000000
+[09:39:54.001] STEP 4 command = (utt.set_feat festival_direct_utt 'type "Tokens")
+[09:39:54.001] STEP 4 wrapped = (begin (utt.set_feat festival_direct_utt 'type "Tokens") t)
+[09:39:54.013] STEP 4 result = 0x00000000
+[09:39:54.017] STEP 5 command = (utt.relation.create festival_direct_utt 'Token)
+[09:39:54.021] STEP 5 wrapped = (begin (utt.relation.create festival_direct_utt 'Token) t)
+[09:39:54.026] STEP 5 result = 0x00000000
+[09:39:54.030] STEP 6 command = (utt.relation.append festival_direct_utt 'Token '("doe" ((name "doe") (whitespace "") (prepunctuation "") (punc ""))))
+[09:39:54.034] STEP 6 wrapped = (begin (utt.relation.append festival_direct_utt 'Token '("doe" ((name "doe") (whitespace "") (prepunctuation "") (punc "")))) t)
+[09:39:54.038] STEP 6 result = 0x00000000
+[09:39:54.042] STEP 7 command = (utt.relation.append festival_direct_utt 'Token '("ray" ((name "ray") (whitespace " ") (prepunctuation "") (punc ""))))
+[09:39:54.042] STEP 7 wrapped = (begin (utt.relation.append festival_direct_utt 'Token '("ray" ((name "ray") (whitespace " ") (prepunctuation "") (punc "")))) t)
+[09:39:54.050] STEP 7 result = 0x00000000
+[09:39:54.052] STEP 8 command = (utt.relation.append festival_direct_utt 'Token '("me" ((name "me") (whitespace " ") (prepunctuation "") (punc ""))))
+[09:39:54.052] STEP 8 wrapped = (begin (utt.relation.append festival_direct_utt 'Token '("me" ((name "me") (whitespace " ") (prepunctuation "") (punc "")))) t)
+[09:39:54.062] STEP 8 result = 0x00000000
+[09:39:54.062] STEP 9 command = (utt.relation.append festival_direct_utt 'Token '("fah" ((name "fah") (whitespace " ") (prepunctuation "") (punc ""))))
+[09:39:54.070] STEP 9 wrapped = (begin (utt.relation.append festival_direct_utt 'Token '("fah" ((name "fah") (whitespace " ") (prepunctuation "") (punc "")))) t)
+[09:39:54.073] STEP 9 result = 0x00000000
+[09:39:54.073] STEP 10 command = (utt.relation.append festival_direct_utt 'Token '("so" ((name "so") (whitespace " ") (prepunctuation "") (punc ""))))
+[09:39:54.083] STEP 10 wrapped = (begin (utt.relation.append festival_direct_utt 'Token '("so" ((name "so") (whitespace " ") (prepunctuation "") (punc "")))) t)
+[09:39:54.083] STEP 10 result = 0x00000000
+[09:39:54.091] STEP 11 command = (set! festival_direct_tokens (utt.relation.items festival_direct_utt 'Token))
+[09:39:54.093] STEP 11 wrapped = (begin (set! festival_direct_tokens (utt.relation.items festival_direct_utt 'Token)) t)
+[09:39:54.101] STEP 11 result = 0x00000000
+[09:39:54.103] STEP 12 command = (item.set_feat (nth 0 festival_direct_tokens) 'freq (list (list (list 261.625565))))
+[09:39:54.103] STEP 12 wrapped = (begin (item.set_feat (nth 0 festival_direct_tokens) 'freq (list (list (list 261.625565)))) t)
+[09:39:54.113] STEP 12 result = 0x00000000
+[09:39:54.113] STEP 13 command = (item.set_feat (nth 0 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+[09:39:54.122] STEP 13 wrapped = (begin (item.set_feat (nth 0 festival_direct_tokens) 'dur (list (list (list 0.666667)))) t)
+[09:39:54.124] STEP 13 result = 0x00000000
+[09:39:54.124] STEP 14 command = (item.set_feat (nth 1 festival_direct_tokens) 'freq (list (list (list 293.664768))))
+[09:39:54.134] STEP 14 wrapped = (begin (item.set_feat (nth 1 festival_direct_tokens) 'freq (list (list (list 293.664768)))) t)
+[09:39:54.134] STEP 14 result = 0x00000000
+[09:39:54.144] STEP 15 command = (item.set_feat (nth 1 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+[09:39:54.144] STEP 15 wrapped = (begin (item.set_feat (nth 1 festival_direct_tokens) 'dur (list (list (list 0.666667)))) t)
+[09:39:54.152] STEP 15 result = 0x00000000
+[09:39:54.152] STEP 16 command = (item.set_feat (nth 2 festival_direct_tokens) 'freq (list (list (list 329.627557))))
+[09:39:54.162] STEP 16 wrapped = (begin (item.set_feat (nth 2 festival_direct_tokens) 'freq (list (list (list 329.627557)))) t)
+[09:39:54.165] STEP 16 result = 0x00000000
+[09:39:54.165] STEP 17 command = (item.set_feat (nth 2 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+[09:39:54.175] STEP 17 wrapped = (begin (item.set_feat (nth 2 festival_direct_tokens) 'dur (list (list (list 0.666667)))) t)
+[09:39:54.175] STEP 17 result = 0x00000000
+[09:39:54.183] STEP 18 command = (item.set_feat (nth 3 festival_direct_tokens) 'freq (list (list (list 349.228231))))
+[09:39:54.185] STEP 18 wrapped = (begin (item.set_feat (nth 3 festival_direct_tokens) 'freq (list (list (list 349.228231)))) t)
+[09:39:54.193] STEP 18 result = 0x00000000
+[09:39:54.195] STEP 19 command = (item.set_feat (nth 3 festival_direct_tokens) 'dur (list (list (list 0.666667))))
+[09:39:54.195] STEP 19 wrapped = (begin (item.set_feat (nth 3 festival_direct_tokens) 'dur (list (list (list 0.666667)))) t)
+[09:39:54.205] STEP 19 result = 0x00000000
+[09:39:54.205] STEP 20 command = (item.set_feat (nth 4 festival_direct_tokens) 'freq (list (list (list 391.995436))))
+[09:39:54.214] STEP 20 wrapped = (begin (item.set_feat (nth 4 festival_direct_tokens) 'freq (list (list (list 391.995436)))) t)
+[09:39:54.216] STEP 20 result = 0x00000000
+[09:39:54.216] STEP 21 command = (item.set_feat (nth 4 festival_direct_tokens) 'dur (list (list (list 1.333333))))
+[09:39:54.226] STEP 21 wrapped = (begin (item.set_feat (nth 4 festival_direct_tokens) 'dur (list (list (list 1.333333)))) t)
+[09:39:54.226] STEP 21 result = 0x00000000
+[09:39:54.234] STEP 22 command = (audio_mode 'shutup)
+[09:39:54.236] STEP 22 wrapped = (begin (audio_mode 'shutup) t)
+[09:39:54.236] STEP 22 result = 0x00000000
+[09:39:54.246] STEP 23 command = (audio_mode 'sync)
+[09:39:54.246] STEP 23 wrapped = (begin (audio_mode 'sync) t)
+[09:39:54.257] STEP 23 result = 0x00000000
+[09:39:54.257] STEP 24 command = (utt.synth festival_direct_utt)
+[09:39:54.265] STEP 24 wrapped = (begin (utt.synth festival_direct_utt) t)
+[09:39:54.594] STEP 24 result = 0x00000000
+[09:39:54.594] STEP 25 command = (utt.play festival_direct_utt)
+[09:39:54.604] STEP 25 wrapped = (begin (utt.play festival_direct_utt) t)
+[09:39:58.699] STEP 25 result = 0x00000000
+[09:39:58.702] STEP 26 command = (singing_exit_func)
+[09:39:58.710] STEP 26 wrapped = (begin (singing_exit_func) t)
+[09:39:58.712] STEP 26 result = 0x00000000
+[09:39:58.720] END PlayDirectSinging S_OK

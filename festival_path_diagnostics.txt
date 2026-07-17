@@ -1,0 +1,11 @@
+ApplicationDirectory = C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger
+
+Candidate 1
+Directory = C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\festival_runtime\festival_home\festival\lib
+DirectoryExists = 1
+Mode = C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\festival_runtime\festival_home\festival\lib\singing-mode.scm
+ModeExists = 1
+DTD = C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\festival_runtime\festival_home\festival\lib\Singing.v0_1.dtd
+DTDExists = 1
+
+SELECTED = C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\festival_runtime\festival_home\festival\lib
