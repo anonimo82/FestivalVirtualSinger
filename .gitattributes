@@ -1,0 +1,2 @@
+wxWidgets/lib/vc_lib/wxmsw32u_core.lib filter=lfs diff=lfs merge=lfs -text
+wxWidgets/lib/vc_lib/wxmsw32ud_core.lib filter=lfs diff=lfs merge=lfs -text
