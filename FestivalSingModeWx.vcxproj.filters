@@ -19,13 +19,23 @@
     <ClCompile Include="festival_bridge.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="piano_roll.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="song_model.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="sample_pool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="tone_preview.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="waveform_editor.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="slice_model.cpp"><Filter>Source Files</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="festival_bridge.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="piano_roll.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="song_model.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="sample_pool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="tone_preview.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="waveform_editor.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="slice_model.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FestivalSingModeWx.rc"><Filter>Resource Files</Filter></ResourceCompile>

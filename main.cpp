@@ -1,13 +1,17 @@
 ﻿#include "festival_bridge.h"
 #include "piano_roll.h"
 #include "song_model.h"
+#include "sample_pool.h"
+#include "slice_model.h"
 #include "tone_preview.h"
+#include "waveform_editor.h"
 
 #include <wx/wx.h>
 #include <wx/accel.h>
 #include <wx/artprov.h>
 #include <wx/choice.h>
 #include <wx/filedlg.h>
+#include <wx/dirdlg.h>
 #include <wx/ffile.h>
 #include <wx/filename.h>
 #include <wx/combobox.h>
@@ -16,6 +20,8 @@
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/statline.h>
+#include <windows.h>
+#include <mmsystem.h>
 #include <algorithm>
 #include <cmath>
 
@@ -36,11 +42,23 @@ namespace
         ID_TestFestival,
         ID_PreviewPhoneme,
         ID_PlaySong,
+        ID_StopSong,
         ID_ExportAudio,
+        ID_RenderEventsToSlicer,
         ID_AddEvent,
         ID_AddPause,
         ID_DuplicateEvent,
-        ID_DeleteEvent
+        ID_DeleteEvent,
+        ID_EventList,
+        ID_SampleList,
+        ID_SampleImport,
+        ID_SamplePreview,
+        ID_SampleStop,
+        ID_SampleRemove,
+        ID_SliceCreate,
+        ID_SliceDelete,
+        ID_SliceList,
+        ID_SliceApply
     };
 
     wxFont SectionFont()
@@ -69,6 +87,38 @@ namespace
         return left.pitch == right.pitch &&
                NearlyEqual(left.beats, right.beats) &&
                left.phoneme == right.phoneme;
+    }
+
+    struct PendingFestivalRender
+    {
+        wxString filePath;
+        int eventIndex;
+        SingingEvent event;
+        wxString voice;
+        double bpm;
+    };
+
+    wxString SafeFileComponent(const wxString& value)
+    {
+        wxString result;
+        for (size_t i = 0; i < value.length(); ++i)
+        {
+            const wxChar c = value[i];
+            if ((c >= wxT('0') && c <= wxT('9')) ||
+                (c >= wxT('A') && c <= wxT('Z')) ||
+                (c >= wxT('a') && c <= wxT('z')) ||
+                c == wxT('-') || c == wxT('_'))
+            {
+                result += c;
+            }
+            else if (!result.EndsWith(wxT("_")))
+            {
+                result += wxT('_');
+            }
+        }
+        if (result.IsEmpty())
+            result = wxT("voice");
+        return result.Left(32);
     }
 
     bool SongsEqual(const SingingSong& left,
@@ -112,7 +162,13 @@ public:
           m_phoneme(NULL),
           m_editPreview(NULL),
           m_status(NULL),
-          m_log(NULL)
+          m_log(NULL),
+          m_sampleList(NULL),
+          m_sampleDetails(NULL),
+          m_waveformEditor(NULL),
+          m_sliceList(NULL), m_sliceName(NULL), m_sliceStart(NULL),
+          m_sliceLoopIn(NULL), m_sliceLoopOut(NULL), m_sliceEnd(NULL),
+          m_sliceRootNote(NULL), m_sliceLoopEnabled(NULL)
     {
         SetMinSize(wxSize(1040, 700));
         SetBackgroundColour(wxColour(242, 244, 247));
@@ -140,12 +196,23 @@ public:
         Bind(wxEVT_BUTTON, &SingModeFrame::OnTestFestival, this, ID_TestFestival);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnPreviewPhoneme, this, ID_PreviewPhoneme);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnPlaySong, this, ID_PlaySong);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnStopSong, this, ID_StopSong);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnExportAudio, this, ID_ExportAudio);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnRenderEventsToSlicer, this, ID_RenderEventsToSlicer);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnAddEvent, this, ID_AddEvent);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnAddPause, this, ID_AddPause);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnDuplicateEvent, this, ID_DuplicateEvent);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnDeleteEvent, this, ID_DeleteEvent);
-        Bind(wxEVT_LIST_ITEM_SELECTED, &SingModeFrame::OnListSelection, this);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSampleImport, this, ID_SampleImport);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSamplePreview, this, ID_SamplePreview);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSampleStop, this, ID_SampleStop);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSampleRemove, this, ID_SampleRemove);
+        Bind(wxEVT_LIST_ITEM_SELECTED, &SingModeFrame::OnSampleSelection, this, ID_SampleList);
+        Bind(wxEVT_LIST_ITEM_SELECTED, &SingModeFrame::OnListSelection, this, ID_EventList);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceCreate, this, ID_SliceCreate);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceDelete, this, ID_SliceDelete);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceApply, this, ID_SliceApply);
+        Bind(wxEVT_LIST_ITEM_SELECTED, &SingModeFrame::OnSliceSelection, this, ID_SliceList);
         Bind(EVT_FESTIVAL_STATUS, &SingModeFrame::OnFestivalStatus, this);
         Bind(wxEVT_CLOSE_WINDOW, &SingModeFrame::OnClose, this);
 
@@ -209,11 +276,28 @@ private:
         wxPanel* root = new wxPanel(this);
         root->SetBackgroundColour(wxColour(242, 244, 247));
 
+        wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+        wxNotebook* workspace = new wxNotebook(root, wxID_ANY);
+
+        workspace->AddPage(BuildSingerPage(workspace),
+                           wxT("Singer"), true);
+        workspace->AddPage(BuildSlicerPlaceholderPage(workspace),
+                           wxT("Slicer"), false);
+
+        rootSizer->Add(workspace, 1, wxEXPAND | wxALL, 6);
+        root->SetSizer(rootSizer);
+    }
+
+    wxPanel* BuildSingerPage(wxWindow* parent)
+    {
+        wxPanel* pagePanel = new wxPanel(parent);
+        pagePanel->SetBackgroundColour(wxColour(242, 244, 247));
+
         wxBoxSizer* page = new wxBoxSizer(wxVERTICAL);
-        page->Add(BuildProjectPanel(root), 0, wxEXPAND | wxALL, 9);
+        page->Add(BuildProjectPanel(pagePanel), 0, wxEXPAND | wxALL, 9);
 
         wxSplitterWindow* outer = new wxSplitterWindow(
-            root, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+            pagePanel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
             wxSP_LIVE_UPDATE | wxSP_3D);
 
         wxPanel* sequencePanel = BuildSequencePanel(outer);
@@ -224,9 +308,112 @@ private:
         outer->SetSashGravity(0.73);
 
         page->Add(outer, 1, wxEXPAND | wxLEFT | wxRIGHT, 9);
-        page->Add(BuildTransportPanel(root), 0, wxEXPAND | wxALL, 9);
+        page->Add(BuildTransportPanel(pagePanel),
+                  0, wxEXPAND | wxALL, 9);
 
-        root->SetSizer(page);
+        pagePanel->SetSizer(page);
+        return pagePanel;
+    }
+
+    wxPanel* BuildSlicerPlaceholderPage(wxWindow* parent)
+    {
+        wxPanel* panel = new wxPanel(parent);
+        panel->SetBackgroundColour(wxColour(242, 244, 247));
+
+        wxBoxSizer* layout = new wxBoxSizer(wxVERTICAL);
+
+        wxBoxSizer* heading = new wxBoxSizer(wxHORIZONTAL);
+        wxStaticText* title = new wxStaticText(
+            panel, wxID_ANY, wxT("Sample Pool"));
+        title->SetFont(SectionFont());
+        heading->Add(title, 0, wxALIGN_CENTER_VERTICAL);
+        heading->AddStretchSpacer();
+        heading->Add(new wxButton(panel, ID_SampleImport, wxT("Import WAV...")),
+                     0, wxRIGHT, 6);
+        heading->Add(new wxButton(panel, ID_SamplePreview, wxT("Preview")),
+                     0, wxRIGHT, 6);
+        heading->Add(new wxButton(panel, ID_SampleStop, wxT("Stop")),
+                     0, wxRIGHT, 6);
+        heading->Add(new wxButton(panel, ID_SampleRemove, wxT("Remove")), 0, wxRIGHT, 12);
+        heading->Add(new wxButton(panel, ID_SliceCreate, wxT("Create Slice")), 0, wxRIGHT, 6);
+        heading->Add(new wxButton(panel, ID_SliceDelete, wxT("Delete Slice")), 0);
+        layout->Add(heading, 0, wxEXPAND | wxALL, 10);
+
+        wxSplitterWindow* splitter = new wxSplitterWindow(
+            panel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+            wxSP_LIVE_UPDATE | wxSP_3D);
+
+        wxPanel* poolPanel = new wxPanel(splitter);
+        poolPanel->SetBackgroundColour(wxColour(242, 244, 247));
+        wxBoxSizer* poolLayout = new wxBoxSizer(wxVERTICAL);
+
+        m_sampleList = new wxListCtrl(
+            poolPanel, ID_SampleList, wxDefaultPosition, wxDefaultSize,
+            wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+        m_sampleList->InsertColumn(0, wxT("Name"), wxLIST_FORMAT_LEFT, 270);
+        m_sampleList->InsertColumn(1, wxT("ID"), wxLIST_FORMAT_LEFT, 155);
+        m_sampleList->InsertColumn(2, wxT("Channels"), wxLIST_FORMAT_RIGHT, 85);
+        m_sampleList->InsertColumn(3, wxT("Sample rate"), wxLIST_FORMAT_RIGHT, 110);
+        m_sampleList->InsertColumn(4, wxT("Bits"), wxLIST_FORMAT_RIGHT, 65);
+        m_sampleList->InsertColumn(5, wxT("Duration"), wxLIST_FORMAT_RIGHT, 95);
+        poolLayout->Add(m_sampleList, 1, wxEXPAND);
+
+        wxStaticBoxSizer* details = new wxStaticBoxSizer(
+            wxVERTICAL, poolPanel, wxT("Selected source"));
+        m_sampleDetails = new wxStaticText(
+            poolPanel, wxID_ANY,
+            wxT("No sample selected. Import a PCM or IEEE-float WAV file."));
+        m_sampleDetails->SetForegroundColour(wxColour(75, 83, 95));
+        details->Add(m_sampleDetails, 0, wxEXPAND | wxALL, 8);
+        poolLayout->Add(details, 0, wxEXPAND | wxTOP, 8);
+        poolPanel->SetSizer(poolLayout);
+
+        m_waveformEditor = new WaveformEditorPanel(splitter);
+        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 280);
+        splitter->SetMinimumPaneSize(150);
+        splitter->SetSashGravity(0.42);
+        layout->Add(splitter, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+
+        wxStaticBoxSizer* sliceBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slices"));
+        m_sliceList = new wxListCtrl(panel, ID_SliceList, wxDefaultPosition, wxSize(500, 150),
+                                     wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+        m_sliceList->InsertColumn(0, wxT("Name"), wxLIST_FORMAT_LEFT, 125);
+        m_sliceList->InsertColumn(1, wxT("ID"), wxLIST_FORMAT_LEFT, 135);
+        m_sliceList->InsertColumn(2, wxT("Start"), wxLIST_FORMAT_RIGHT, 75);
+        m_sliceList->InsertColumn(3, wxT("Loop In"), wxLIST_FORMAT_RIGHT, 75);
+        m_sliceList->InsertColumn(4, wxT("Loop Out"), wxLIST_FORMAT_RIGHT, 75);
+        m_sliceList->InsertColumn(5, wxT("End"), wxLIST_FORMAT_RIGHT, 75);
+        sliceBox->Add(m_sliceList, 1, wxEXPAND | wxALL, 6);
+
+        wxFlexGridSizer* fields = new wxFlexGridSizer(2, 6, 6);
+        fields->AddGrowableCol(1, 1);
+        fields->Add(Caption(panel, wxT("Name")), 0, wxALIGN_CENTER_VERTICAL);
+        m_sliceName = new wxTextCtrl(panel, wxID_ANY); fields->Add(m_sliceName, 1, wxEXPAND);
+        fields->Add(Caption(panel, wxT("Start frame")), 0, wxALIGN_CENTER_VERTICAL);
+        m_sliceStart = new wxTextCtrl(panel, wxID_ANY); fields->Add(m_sliceStart, 1, wxEXPAND);
+        fields->Add(Caption(panel, wxT("Loop In")), 0, wxALIGN_CENTER_VERTICAL);
+        m_sliceLoopIn = new wxTextCtrl(panel, wxID_ANY); fields->Add(m_sliceLoopIn, 1, wxEXPAND);
+        fields->Add(Caption(panel, wxT("Loop Out")), 0, wxALIGN_CENTER_VERTICAL);
+        m_sliceLoopOut = new wxTextCtrl(panel, wxID_ANY); fields->Add(m_sliceLoopOut, 1, wxEXPAND);
+        fields->Add(Caption(panel, wxT("End frame")), 0, wxALIGN_CENTER_VERTICAL);
+        m_sliceEnd = new wxTextCtrl(panel, wxID_ANY); fields->Add(m_sliceEnd, 1, wxEXPAND);
+        fields->Add(Caption(panel, wxT("Root MIDI note")), 0, wxALIGN_CENTER_VERTICAL);
+        m_sliceRootNote = new wxSpinCtrl(panel, wxID_ANY, wxT("60"), wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 127, 60);
+        fields->Add(m_sliceRootNote, 1, wxEXPAND);
+        m_sliceLoopEnabled = new wxCheckBox(panel, wxID_ANY, wxT("Loop enabled"));
+        m_sliceLoopEnabled->SetValue(true); fields->Add(m_sliceLoopEnabled, 0, wxALIGN_CENTER_VERTICAL);
+        fields->Add(new wxButton(panel, ID_SliceApply, wxT("Apply Slice")), 0, wxEXPAND);
+        sliceBox->Add(fields, 0, wxEXPAND | wxALL, 6);
+        layout->Add(sliceBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+        wxStaticText* note = new wxStaticText(
+            panel, wxID_ANY,
+            wxT("M5 scope: stable slice IDs, start/loop-in/loop-out/end markers, root note and optional note-held loop."));
+        note->SetForegroundColour(wxColour(75, 83, 95));
+        layout->Add(note, 0, wxLEFT | wxRIGHT | wxTOP | wxBOTTOM, 12);
+
+        panel->SetSizer(layout);
+        return panel;
     }
 
     wxPanel* BuildProjectPanel(wxWindow* parent)
@@ -331,7 +518,7 @@ private:
         wxBoxSizer* listSizer = new wxBoxSizer(wxVERTICAL);
 
         m_eventList = new wxListCtrl(
-            listPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+            listPanel, ID_EventList, wxDefaultPosition, wxDefaultSize,
             wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
         m_eventList->AppendColumn(wxT("#"), wxLIST_FORMAT_RIGHT, 36);
         m_eventList->AppendColumn(wxT("Phoneme / rest"),
@@ -480,10 +667,24 @@ private:
             play->SetBitmap(playBitmap);
         row->Add(play, 0, wxALL, 7);
 
+        wxButton* stop = new wxButton(
+            panel, ID_StopSong, wxT("■ Stop"));
+        wxBitmap stopBitmap = wxArtProvider::GetBitmap(
+            wxART_CROSS_MARK, wxART_BUTTON, wxSize(16, 16));
+        if (stopBitmap.IsOk())
+            stop->SetBitmap(stopBitmap);
+        row->Add(stop, 0, wxTOP | wxBOTTOM | wxRIGHT, 7);
+
         row->Add(new wxButton(
                      panel,
                      ID_ExportAudio,
                      wxT("Export WAV...")),
+                 0, wxTOP | wxBOTTOM | wxRIGHT, 7);
+
+        row->Add(new wxButton(
+                     panel,
+                     ID_RenderEventsToSlicer,
+                     wxT("Render Events to Slicer...")),
                  0, wxTOP | wxBOTTOM | wxRIGHT, 7);
 
         row->Add(new wxButton(
@@ -1171,6 +1372,15 @@ private:
         m_festival.PlaySong(m_song);
     }
 
+    void OnStopSong(wxCommandEvent&)
+    {
+        m_tonePreview.Stop();
+        m_festival.Stop();
+        m_status->SetLabel(wxT("Festival: stopped."));
+        SetStatusText(wxT("Festival: stopped."), 0);
+        AppendLog(wxT("Playback stopped by user."));
+    }
+
     void OnExportAudio(wxCommandEvent&)
     {
         ApplyEditor(false);
@@ -1240,6 +1450,76 @@ private:
 
         AppendLog(
             wxT("Audio rendering started: ") + path);
+    }
+
+    void OnRenderEventsToSlicer(wxCommandEvent&)
+    {
+        ApplyEditor(false);
+        m_song.voice = CurrentVoice();
+        m_song.bpm = m_bpm->GetValue();
+
+        size_t voicedCount = 0;
+        for (size_t i = 0; i < m_song.events.size(); ++i)
+        {
+            if (!IsPauseEvent(m_song.events[i]))
+                ++voicedCount;
+        }
+
+        if (voicedCount == 0)
+        {
+            wxMessageBox(wxT("The sequence contains no voiced events to render."),
+                         wxT("Render Events to Slicer"),
+                         wxOK | wxICON_INFORMATION, this);
+            return;
+        }
+
+        wxDirDialog dialog(this,
+                           wxT("Choose the folder for the event WAV files"),
+                           wxEmptyString,
+                           wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+        if (dialog.ShowModal() != wxID_OK)
+            return;
+
+        const wxString folder = dialog.GetPath();
+        const wxString batchStamp =
+            wxDateTime::Now().Format(wxT("%Y%m%d-%H%M%S"));
+
+        size_t queued = 0;
+        for (size_t i = 0; i < m_song.events.size(); ++i)
+        {
+            const SingingEvent& source = m_song.events[i];
+            if (IsPauseEvent(source))
+                continue;
+
+            const wxString fileName = wxString::Format(
+                wxT("festival-%s-event-%04u-%s-%s.wav"),
+                batchStamp.c_str(),
+                static_cast<unsigned int>(i + 1),
+                SafeFileComponent(source.pitch).c_str(),
+                SafeFileComponent(source.phoneme).c_str());
+            const wxString path = wxFileName(folder, fileName).GetFullPath();
+
+            PendingFestivalRender pending;
+            pending.filePath = path;
+            pending.eventIndex = static_cast<int>(i);
+            pending.event = source;
+            pending.voice = m_song.voice;
+            pending.bpm = m_song.bpm;
+            m_pendingFestivalRenders.push_back(pending);
+
+            SingingSong single;
+            single.title = wxString::Format(wxT("Event %u"),
+                                             static_cast<unsigned int>(i + 1));
+            single.voice = m_song.voice;
+            single.bpm = m_song.bpm;
+            single.events.push_back(source);
+            m_festival.RenderSong(single, path);
+            ++queued;
+        }
+
+        AppendLog(wxString::Format(
+            wxT("Queued %u Festival event WAV file(s) for the Sample Pool."),
+            static_cast<unsigned int>(queued)));
     }
 
     void OnAddEvent(wxCommandEvent&)
@@ -1331,6 +1611,331 @@ private:
         }
     }
 
+    long SelectedSampleIndex() const
+    {
+        if (m_sampleList == NULL)
+            return -1;
+        return m_sampleList->GetNextItem(-1, wxLIST_NEXT_ALL,
+                                         wxLIST_STATE_SELECTED);
+    }
+
+    void RefreshSampleList(long selectIndex = -1)
+    {
+        if (m_sampleList == NULL)
+            return;
+
+        m_sampleList->DeleteAllItems();
+        for (size_t i = 0; i < m_samplePool.GetCount(); ++i)
+        {
+            const SamplePoolItem* item = m_samplePool.GetAt(i);
+            if (!item)
+                continue;
+
+            const long row = m_sampleList->InsertItem(
+                static_cast<long>(i), item->displayName);
+            m_sampleList->SetItem(row, 1, item->id);
+            m_sampleList->SetItem(row, 2,
+                wxString::Format(wxT("%u"),
+                    static_cast<unsigned int>(item->wav.channelCount)));
+            m_sampleList->SetItem(row, 3,
+                wxString::Format(wxT("%u Hz"), item->wav.sampleRate));
+            m_sampleList->SetItem(row, 4,
+                wxString::Format(wxT("%u"),
+                    static_cast<unsigned int>(item->wav.bitsPerSample)));
+            m_sampleList->SetItem(row, 5,
+                wxString::Format(wxT("%.3f s"), item->wav.durationSeconds));
+        }
+
+        if (selectIndex >= 0 &&
+            selectIndex < static_cast<long>(m_samplePool.GetCount()))
+        {
+            m_sampleList->SetItemState(selectIndex,
+                wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED,
+                wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
+            m_sampleList->EnsureVisible(selectIndex);
+        }
+        UpdateSampleDetails();
+    }
+
+    void UpdateSampleDetails(bool updateWaveform = true)
+    {
+        if (m_sampleDetails == NULL)
+            return;
+
+        const long selected = SelectedSampleIndex();
+        const SamplePoolItem* item = selected >= 0
+            ? m_samplePool.GetAt(static_cast<size_t>(selected)) : NULL;
+        if (!item)
+        {
+            m_sampleDetails->SetLabel(
+                wxT("No sample selected. Import a PCM or IEEE-float WAV file."));
+            if (updateWaveform && m_waveformEditor)
+                m_waveformEditor->ClearSample();
+            return;
+        }
+
+        wxString details = wxString::Format(
+            wxT("%s\n%s\n%u channel(s), %u Hz, %u-bit, %llu frames, %.3f seconds"),
+            item->displayName.c_str(), item->filePath.c_str(),
+            static_cast<unsigned int>(item->wav.channelCount),
+            item->wav.sampleRate,
+            static_cast<unsigned int>(item->wav.bitsPerSample),
+            item->wav.frameCount,
+            item->wav.durationSeconds);
+
+        if (item->generatedByFestival)
+        {
+            details += wxString::Format(
+                wxT("\nFestival event %d: %s / %s / %.4g beats / %s / %.0f BPM"),
+                item->sourceEventIndex + 1,
+                item->sourcePitch.c_str(),
+                item->sourcePhoneme.c_str(),
+                item->sourceBeats,
+                item->sourceVoice.c_str(),
+                item->sourceBpm);
+        }
+        m_sampleDetails->SetLabel(details);
+
+        if (updateWaveform && m_waveformEditor)
+        {
+            wxString waveformError;
+            if (!m_waveformEditor->SetSample(item, &waveformError))
+            {
+                AppendLog(wxT("Waveform could not be loaded: ") + waveformError);
+                m_waveformEditor->ClearSample();
+            }
+        }
+    }
+
+    long SelectedSliceIndex() const
+    {
+        return m_sliceList ? m_sliceList->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED) : -1;
+    }
+
+    void RefreshSliceList(long selectIndex = -1)
+    {
+        if (!m_sliceList) return;
+        m_sliceList->DeleteAllItems();
+        const long sourceIndex = SelectedSampleIndex();
+        const SamplePoolItem* source = sourceIndex >= 0 ? m_samplePool.GetAt(static_cast<size_t>(sourceIndex)) : NULL;
+        long visibleRow = 0;
+        long selectedRow = -1;
+        for (size_t i = 0; i < m_sliceModel.GetCount(); ++i)
+        {
+            const AudioSlice* slice = m_sliceModel.GetAt(i);
+            if (!slice || !source || slice->sourceId != source->id) continue;
+            long row = m_sliceList->InsertItem(visibleRow, slice->name);
+            m_sliceList->SetItem(row, 1, slice->id);
+            m_sliceList->SetItem(row, 2, wxString::Format(wxT("%llu"), slice->startFrame));
+            m_sliceList->SetItem(row, 3, wxString::Format(wxT("%llu"), slice->loopInFrame));
+            m_sliceList->SetItem(row, 4, wxString::Format(wxT("%llu"), slice->loopOutFrame));
+            m_sliceList->SetItem(row, 5, wxString::Format(wxT("%llu"), slice->endFrame));
+            m_sliceList->SetItemData(row, static_cast<long>(i));
+            if (static_cast<long>(i) == selectIndex) selectedRow = row;
+            ++visibleRow;
+        }
+        if (selectedRow >= 0)
+            m_sliceList->SetItemState(selectedRow, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED,
+                                      wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
+        if (visibleRow == 0 && m_waveformEditor)
+            m_waveformEditor->SetSliceMarkers(false,0,0,0,0);
+    }
+
+    AudioSlice* SelectedSlice()
+    {
+        const long row = SelectedSliceIndex();
+        if (row < 0) return NULL;
+        const long modelIndex = static_cast<long>(m_sliceList->GetItemData(row));
+        return modelIndex >= 0 ? m_sliceModel.GetAt(static_cast<size_t>(modelIndex)) : NULL;
+    }
+
+    void LoadSliceControls(AudioSlice* slice)
+    {
+        if (!slice) return;
+        m_sliceName->SetValue(slice->name);
+        m_sliceStart->SetValue(wxString::Format(wxT("%llu"), slice->startFrame));
+        m_sliceLoopIn->SetValue(wxString::Format(wxT("%llu"), slice->loopInFrame));
+        m_sliceLoopOut->SetValue(wxString::Format(wxT("%llu"), slice->loopOutFrame));
+        m_sliceEnd->SetValue(wxString::Format(wxT("%llu"), slice->endFrame));
+        m_sliceRootNote->SetValue(slice->rootMidiNote);
+        m_sliceLoopEnabled->SetValue(slice->loopEnabled);
+        if (m_waveformEditor)
+            m_waveformEditor->SetSliceMarkers(true, slice->startFrame, slice->loopInFrame, slice->loopOutFrame, slice->endFrame);
+    }
+
+    bool ParseFrame(wxTextCtrl* control, unsigned long long* value) const
+    {
+        return control && value && control->GetValue().ToULongLong(value);
+    }
+
+    void OnSliceCreate(wxCommandEvent&)
+    {
+        const long sourceIndex = SelectedSampleIndex();
+        const SamplePoolItem* source = sourceIndex >= 0 ? m_samplePool.GetAt(static_cast<size_t>(sourceIndex)) : NULL;
+        if (!source || !m_waveformEditor || !m_waveformEditor->HasSelection())
+        {
+            wxMessageBox(wxT("Select a Sample Pool source and drag a non-empty waveform selection first."),
+                         wxT("Create Slice"), wxOK | wxICON_INFORMATION, this);
+            return;
+        }
+        AudioSlice added; wxString error;
+        if (!m_sliceModel.AddFromSelection(source->id, m_waveformEditor->GetSelectionStartFrame(),
+                                            m_waveformEditor->GetSelectionEndFrame(), &added, &error))
+        {
+            wxMessageBox(error, wxT("Create Slice"), wxOK | wxICON_WARNING, this); return;
+        }
+        const long index = static_cast<long>(m_sliceModel.GetCount()) - 1;
+        RefreshSliceList(index);
+        LoadSliceControls(m_sliceModel.GetAt(static_cast<size_t>(index)));
+    }
+
+    void OnSliceDelete(wxCommandEvent&)
+    {
+        const long row = SelectedSliceIndex();
+        if (row < 0) return;
+        const size_t index = static_cast<size_t>(m_sliceList->GetItemData(row));
+        m_sliceModel.RemoveAt(index);
+        RefreshSliceList();
+    }
+
+    void OnSliceSelection(wxListEvent& event)
+    {
+        const long index = static_cast<long>(m_sliceList->GetItemData(event.GetIndex()));
+        LoadSliceControls(index >= 0 ? m_sliceModel.GetAt(static_cast<size_t>(index)) : NULL);
+    }
+
+    void OnSliceApply(wxCommandEvent&)
+    {
+        AudioSlice* slice = SelectedSlice();
+        if (!slice) return;
+        unsigned long long start=0, loopIn=0, loopOut=0, end=0;
+        if (!ParseFrame(m_sliceStart,&start) || !ParseFrame(m_sliceLoopIn,&loopIn) ||
+            !ParseFrame(m_sliceLoopOut,&loopOut) || !ParseFrame(m_sliceEnd,&end))
+        {
+            wxMessageBox(wxT("All marker positions must be whole frame numbers."), wxT("Apply Slice"), wxOK | wxICON_WARNING, this); return;
+        }
+        const long sourceIndex = SelectedSampleIndex();
+        const SamplePoolItem* source = sourceIndex >= 0 ? m_samplePool.GetAt(static_cast<size_t>(sourceIndex)) : NULL;
+        if (!source || !(start <= loopIn && loopIn < loopOut && loopOut <= end && end <= source->wav.frameCount))
+        {
+            wxMessageBox(wxT("Required order: start <= loopIn < loopOut <= end, all within the source."),
+                         wxT("Apply Slice"), wxOK | wxICON_WARNING, this); return;
+        }
+        slice->name = m_sliceName->GetValue().IsEmpty() ? slice->id : m_sliceName->GetValue();
+        slice->startFrame=start; slice->loopInFrame=loopIn; slice->loopOutFrame=loopOut; slice->endFrame=end;
+        slice->rootMidiNote=m_sliceRootNote->GetValue(); slice->loopEnabled=m_sliceLoopEnabled->GetValue();
+        const long modelIndex = static_cast<long>(m_sliceList->GetItemData(SelectedSliceIndex()));
+        RefreshSliceList(modelIndex); LoadSliceControls(slice);
+    }
+
+    void OnSampleImport(wxCommandEvent&)
+    {
+        wxFileDialog dialog(this, wxT("Import WAV into Sample Pool"),
+                            wxEmptyString, wxEmptyString,
+                            wxT("WAV audio (*.wav)|*.wav"),
+                            wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+        if (dialog.ShowModal() != wxID_OK)
+            return;
+
+        wxArrayString paths;
+        dialog.GetPaths(paths);
+        long lastAdded = -1;
+        wxString failures;
+
+        for (size_t i = 0; i < paths.GetCount(); ++i)
+        {
+            SamplePoolItem added;
+            wxString error;
+            if (m_samplePool.AddWav(paths[i], &added, &error))
+                lastAdded = static_cast<long>(m_samplePool.GetCount()) - 1;
+            else
+                failures += wxString::Format(wxT("%s: %s\n"),
+                                             paths[i].c_str(), error.c_str());
+        }
+
+        RefreshSampleList(lastAdded);
+        if (!failures.empty())
+            wxMessageBox(failures, wxT("Some files were not imported"),
+                         wxOK | wxICON_WARNING, this);
+    }
+
+    void OnSamplePreview(wxCommandEvent&)
+    {
+        const long selected = SelectedSampleIndex();
+        const SamplePoolItem* item = selected >= 0
+            ? m_samplePool.GetAt(static_cast<size_t>(selected)) : NULL;
+        if (!item)
+        {
+            wxMessageBox(wxT("Select a sample first."), wxT("Sample Pool"),
+                         wxOK | wxICON_INFORMATION, this);
+            return;
+        }
+
+        if (!PlaySoundW(item->filePath.wc_str(), NULL,
+                        SND_FILENAME | SND_ASYNC | SND_NODEFAULT))
+        {
+            wxMessageBox(wxT("Windows could not preview this WAV file."),
+                         wxT("Sample preview"), wxOK | wxICON_ERROR, this);
+            return;
+        }
+        if (m_waveformEditor)
+            m_waveformEditor->StartPlayback();
+    }
+
+    void OnSampleStop(wxCommandEvent&)
+    {
+        PlaySoundW(NULL, NULL, 0);
+        if (m_waveformEditor)
+            m_waveformEditor->StopPlayback();
+    }
+
+    void OnSampleRemove(wxCommandEvent&)
+    {
+        const long selected = SelectedSampleIndex();
+        if (selected < 0)
+            return;
+
+        PlaySoundW(NULL, NULL, 0);
+        if (m_waveformEditor)
+            m_waveformEditor->StopPlayback();
+        m_samplePool.RemoveAt(static_cast<size_t>(selected));
+        const long next = std::min(selected,
+            static_cast<long>(m_samplePool.GetCount()) - 1);
+        RefreshSampleList(next);
+    }
+
+    void OnSampleSelection(wxListEvent& event)
+    {
+        // Keep Singer and Sample Pool selection events isolated.  The event
+        // index is authoritative here; querying the list too early can still
+        // return the previously selected row on some wxWidgets/Win32 builds.
+        const long selected = event.GetIndex();
+        if (selected < 0 ||
+            selected >= static_cast<long>(m_samplePool.GetCount()))
+        {
+            UpdateSampleDetails();
+            return;
+        }
+
+        PlaySoundW(NULL, NULL, 0);
+        if (m_waveformEditor)
+        {
+            m_waveformEditor->StopPlayback();
+            const SamplePoolItem* item =
+                m_samplePool.GetAt(static_cast<size_t>(selected));
+            wxString waveformError;
+            if (!item || !m_waveformEditor->SetSample(item, &waveformError))
+            {
+                if (!waveformError.empty())
+                    AppendLog(wxT("Waveform could not be loaded: ") + waveformError);
+                m_waveformEditor->ClearSample();
+            }
+        }
+
+        UpdateSampleDetails(false);
+        RefreshSliceList();
+    }
+
     void OnFestivalStatus(wxThreadEvent& event)
     {
         const wxString message = event.GetString();
@@ -1339,6 +1944,38 @@ private:
         m_status->SetLabel(message);
         SetStatusText(message, 0);
         AppendLog(message);
+
+        const wxString exportPrefix = wxT("Audio exported: ");
+        if (code == FestivalStatus_Ready && message.StartsWith(exportPrefix))
+        {
+            const wxString exportedPath = message.Mid(exportPrefix.length());
+            for (std::vector<PendingFestivalRender>::iterator it =
+                     m_pendingFestivalRenders.begin();
+                 it != m_pendingFestivalRenders.end(); ++it)
+            {
+                if (it->filePath.CmpNoCase(exportedPath) != 0)
+                    continue;
+
+                SamplePoolItem added;
+                wxString error;
+                if (m_samplePool.AddFestivalWav(
+                        exportedPath, it->eventIndex, it->event,
+                        it->voice, it->bpm, &added, &error))
+                {
+                    RefreshSampleList(
+                        static_cast<long>(m_samplePool.GetCount()) - 1);
+                    AppendLog(wxT("Festival event imported into Sample Pool: ") +
+                              added.displayName);
+                }
+                else
+                {
+                    AppendLog(wxT("Festival event WAV was rendered but could not be imported: ") +
+                              error);
+                }
+                m_pendingFestivalRenders.erase(it);
+                break;
+            }
+        }
 
         if (code == FestivalStatus_Error)
             m_status->SetForegroundColour(wxColour(184, 47, 47));
@@ -1364,6 +2001,7 @@ private:
         }
 
         m_tonePreview.Stop();
+        PlaySoundW(NULL, NULL, 0);
         m_festival.Shutdown();
         event.Skip();
     }
@@ -1401,6 +2039,20 @@ private:
     wxCheckBox* m_editPreview;
     wxStaticText* m_status;
     wxTextCtrl* m_log;
+    wxListCtrl* m_sampleList;
+    wxStaticText* m_sampleDetails;
+    WaveformEditorPanel* m_waveformEditor;
+    wxListCtrl* m_sliceList;
+    wxTextCtrl* m_sliceName;
+    wxTextCtrl* m_sliceStart;
+    wxTextCtrl* m_sliceLoopIn;
+    wxTextCtrl* m_sliceLoopOut;
+    wxTextCtrl* m_sliceEnd;
+    wxSpinCtrl* m_sliceRootNote;
+    wxCheckBox* m_sliceLoopEnabled;
+    SamplePool m_samplePool;
+    SliceModel m_sliceModel;
+    std::vector<PendingFestivalRender> m_pendingFestivalRenders;
 
     TonePreview m_tonePreview;
     FestivalBridge m_festival;

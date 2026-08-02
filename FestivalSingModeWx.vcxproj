@@ -118,6 +118,9 @@
     <ClCompile Include="piano_roll.cpp" />
     <ClCompile Include="song_model.cpp" />
     <ClCompile Include="tone_preview.cpp" />
+    <ClCompile Include="sample_pool.cpp" />
+    <ClCompile Include="waveform_editor.cpp" />
+    <ClCompile Include="slice_model.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -125,6 +128,9 @@
     <ClInclude Include="piano_roll.h" />
     <ClInclude Include="song_model.h" />
     <ClInclude Include="tone_preview.h" />
+    <ClInclude Include="sample_pool.h" />
+    <ClInclude Include="waveform_editor.h" />
+    <ClInclude Include="slice_model.h" />
   </ItemGroup>
 
   <ItemGroup>

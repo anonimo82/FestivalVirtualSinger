@@ -815,7 +815,9 @@ void FestivalBridge::RenderSong(const SingingSong& song,
     command.label =
         wxT("WAV export: ") +
         wxFileName(waveFilePath).GetFullName();
-    Push(command, true, false);
+    // Render commands may belong to a multi-event batch. Do not replace
+    // an earlier queued render with the newest one.
+    Push(command, false, false);
 }
 
 void FestivalBridge::Stop()

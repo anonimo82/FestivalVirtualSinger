@@ -1,5 +1,6 @@
-﻿Build started 17/07/2026 09:39:18.
+﻿Build started 02/08/2026 01:45:28.
      1>Project "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.vcxproj" on node 2 (Rebuild target(s)).
+     1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppClean.targets(76,5): warning : The process cannot access the file 'c:\users\ivano arrighetta\documents\github\festivalvirtualsinger\festivalsingmodewx.pdb' because it is being used by another process.
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\include\msvc" /I"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\include" /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D WIN32 /D NDEBUG /D _WINDOWS /D __WXMSW__ /D UNICODE /D _UNICODE /D _UNICODE /D UNICODE /Gm- /EHsc /MT /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\\" /Fd"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp festival_bridge.cpp piano_roll.cpp song_model.cpp tone_preview.cpp
          main.cpp
@@ -23,4 +24,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:14.98
+Time Elapsed 00:00:21.93
