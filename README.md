@@ -442,3 +442,11 @@ It is conceptually derived from the original Festival singing-mode frontend and 
 ## License
 
 GNU General Public License version 3. See the upstream project and third-party dependency licenses for their respective terms.
+
+## M11 project folders and Slicer rendering
+
+The Slicer can save a permanent, inspectable project folder containing `project.fvsp`, `singer.xml`, and an `audio` directory with project-owned WAV copies. The same folder can be reopened, with missing audio reported as a warning. `Render Slicer WAV...` creates an offline stereo 44.1 kHz/16-bit PCM mix of the Slicer Piano Roll.
+
+## M12 Piano Roll Editing
+
+The Slicer Piano Roll now includes undo/redo, cut/copy/paste keyboard shortcuts and rectangular marquee selection. See `TEST_M12.txt` for the current release tests.

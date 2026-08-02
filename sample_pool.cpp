@@ -108,6 +108,13 @@ const SamplePoolItem* SamplePool::GetAt(size_t index) const
     return &m_items[index];
 }
 
+SamplePoolItem* SamplePool::GetAtMutable(size_t index)
+{
+    if (index >= m_items.size())
+        return NULL;
+    return &m_items[index];
+}
+
 bool SamplePool::ReadWavMetadata(const wxString& filePath,
                                  WavMetadata* metadata,
                                  wxString* errorMessage) const

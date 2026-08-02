@@ -1,10 +1,20 @@
-﻿#include "festival_bridge.h"
+﻿#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include "festival_bridge.h"
 #include "piano_roll.h"
 #include "song_model.h"
 #include "sample_pool.h"
 #include "slice_model.h"
+#include "sample_engine.h"
+#include "slicer_piano_roll.h"
 #include "tone_preview.h"
 #include "waveform_editor.h"
+#include "auto_slicer.h"
 
 #include <wx/wx.h>
 #include <wx/accel.h>
@@ -12,8 +22,8 @@
 #include <wx/choice.h>
 #include <wx/filedlg.h>
 #include <wx/dirdlg.h>
-#include <wx/ffile.h>
 #include <wx/filename.h>
+#include <wx/ffile.h>
 #include <wx/combobox.h>
 #include <wx/listctrl.h>
 #include <wx/notebook.h>
@@ -58,7 +68,17 @@ namespace
         ID_SliceCreate,
         ID_SliceDelete,
         ID_SliceList,
-        ID_SliceApply
+        ID_SliceApply,
+        ID_SliceNoteOn,
+        ID_SliceNoteOff,
+        ID_SliceStopAll,
+        ID_OpenSlicerPianoRoll,
+        ID_AutoSlicePreview,
+        ID_AutoSliceApply,
+        ID_AutoSliceClear,
+        ID_ProjectSaveFolder,
+        ID_ProjectOpenFolder,
+        ID_ProjectRenderWav
     };
 
     wxFont SectionFont()
@@ -168,7 +188,9 @@ public:
           m_waveformEditor(NULL),
           m_sliceList(NULL), m_sliceName(NULL), m_sliceStart(NULL),
           m_sliceLoopIn(NULL), m_sliceLoopOut(NULL), m_sliceEnd(NULL),
-          m_sliceRootNote(NULL), m_sliceLoopEnabled(NULL)
+          m_sliceRootNote(NULL), m_sliceLoopEnabled(NULL),
+          m_auditionNote(NULL), m_playMode(NULL), m_engineStatus(NULL),
+          m_slicerPianoRollFrame(NULL)
     {
         SetMinSize(wxSize(1040, 700));
         SetBackgroundColour(wxColour(242, 244, 247));
@@ -213,6 +235,16 @@ public:
         Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceDelete, this, ID_SliceDelete);
         Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceApply, this, ID_SliceApply);
         Bind(wxEVT_LIST_ITEM_SELECTED, &SingModeFrame::OnSliceSelection, this, ID_SliceList);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceNoteOn, this, ID_SliceNoteOn);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceNoteOff, this, ID_SliceNoteOff);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnSliceStopAll, this, ID_SliceStopAll);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnOpenSlicerPianoRoll, this, ID_OpenSlicerPianoRoll);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnAutoSlicePreview, this, ID_AutoSlicePreview);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnAutoSliceApply, this, ID_AutoSliceApply);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnAutoSliceClear, this, ID_AutoSliceClear);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnProjectSaveFolder, this, ID_ProjectSaveFolder);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnProjectOpenFolder, this, ID_ProjectOpenFolder);
+        Bind(wxEVT_BUTTON, &SingModeFrame::OnProjectRenderWav, this, ID_ProjectRenderWav);
         Bind(EVT_FESTIVAL_STATUS, &SingModeFrame::OnFestivalStatus, this);
         Bind(wxEVT_CLOSE_WINDOW, &SingModeFrame::OnClose, this);
 
@@ -223,6 +255,7 @@ public:
 
     ~SingModeFrame()
     {
+        m_sampleEngine.Shutdown();
         m_festival.Shutdown();
     }
 
@@ -328,6 +361,9 @@ private:
         title->SetFont(SectionFont());
         heading->Add(title, 0, wxALIGN_CENTER_VERTICAL);
         heading->AddStretchSpacer();
+        heading->Add(new wxButton(panel, ID_ProjectOpenFolder, wxT("Open Project Folder...")), 0, wxRIGHT, 6);
+        heading->Add(new wxButton(panel, ID_ProjectSaveFolder, wxT("Save Project Folder...")), 0, wxRIGHT, 6);
+        heading->Add(new wxButton(panel, ID_ProjectRenderWav, wxT("Render Slicer WAV...")), 0, wxRIGHT, 12);
         heading->Add(new wxButton(panel, ID_SampleImport, wxT("Import WAV...")),
                      0, wxRIGHT, 6);
         heading->Add(new wxButton(panel, ID_SamplePreview, wxT("Preview")),
@@ -406,9 +442,52 @@ private:
         sliceBox->Add(fields, 0, wxEXPAND | wxALL, 6);
         layout->Add(sliceBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+        wxStaticBoxSizer* autoBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Auto-slicing"));
+        autoBox->Add(Caption(panel, wxT("Mode")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
+        m_autoSliceMode = new wxChoice(panel, wxID_ANY);
+        m_autoSliceMode->Append(wxT("Transients"));
+        m_autoSliceMode->Append(wxT("Uniform"));
+        m_autoSliceMode->SetSelection(0);
+        autoBox->Add(m_autoSliceMode, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        autoBox->Add(Caption(panel, wxT("Divisions")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+        m_autoSliceDivisions = new wxSpinCtrl(panel, wxID_ANY, wxT("8"), wxDefaultPosition, wxSize(70,-1), wxSP_ARROW_KEYS, 1, 128, 8);
+        autoBox->Add(m_autoSliceDivisions, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        autoBox->Add(Caption(panel, wxT("Sensitivity")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+        m_autoSliceSensitivity = new wxSpinCtrlDouble(panel, wxID_ANY, wxT("0.35"), wxDefaultPosition, wxSize(80,-1), wxSP_ARROW_KEYS, 0.01, 1.0, 0.35, 0.01);
+        autoBox->Add(m_autoSliceSensitivity, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        autoBox->Add(Caption(panel, wxT("Min gap ms")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+        m_autoSliceGapMs = new wxSpinCtrlDouble(panel, wxID_ANY, wxT("60"), wxDefaultPosition, wxSize(82,-1), wxSP_ARROW_KEYS, 1.0, 5000.0, 60.0, 1.0);
+        autoBox->Add(m_autoSliceGapMs, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        autoBox->Add(new wxButton(panel, ID_AutoSlicePreview, wxT("Preview markers")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+        autoBox->Add(new wxButton(panel, ID_AutoSliceApply, wxT("Apply slices")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        autoBox->Add(new wxButton(panel, ID_AutoSliceClear, wxT("Clear preview")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        m_autoSliceStatus = new wxStaticText(panel, wxID_ANY, wxT("No preview"));
+        m_autoSliceStatus->SetForegroundColour(wxColour(75,83,95));
+        autoBox->Add(m_autoSliceStatus, 1, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 12);
+        layout->Add(autoBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+        wxStaticBoxSizer* engineBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slice audition — WinMM realtime engine"));
+        engineBox->Add(Caption(panel, wxT("MIDI note")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
+        m_auditionNote = new wxSpinCtrl(panel, wxID_ANY, wxT("60"), wxDefaultPosition, wxSize(72, -1), wxSP_ARROW_KEYS, 0, 127, 60);
+        engineBox->Add(m_auditionNote, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        engineBox->Add(Caption(panel, wxT("Mode")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 14);
+        m_playMode = new wxChoice(panel, wxID_ANY);
+        m_playMode->Append(wxT("Retrigger"));
+        m_playMode->Append(wxT("Legato"));
+        m_playMode->SetSelection(0);
+        engineBox->Add(m_playMode, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        engineBox->Add(new wxButton(panel, ID_SliceNoteOn, wxT("Note On")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 14);
+        engineBox->Add(new wxButton(panel, ID_SliceNoteOff, wxT("Note Off")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        engineBox->Add(new wxButton(panel, ID_SliceStopAll, wxT("Stop All")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
+        engineBox->Add(new wxButton(panel, ID_OpenSlicerPianoRoll, wxT("Open Piano Roll...")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 14);
+        m_engineStatus = new wxStaticText(panel, wxID_ANY, wxT("Engine idle"));
+        m_engineStatus->SetForegroundColour(wxColour(75, 83, 95));
+        engineBox->Add(m_engineStatus, 1, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 14);
+        layout->Add(engineBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
         wxStaticText* note = new wxStaticText(
             panel, wxID_ANY,
-            wxT("M5 scope: stable slice IDs, start/loop-in/loop-out/end markers, root note and optional note-held loop."));
+            wxT("M11: project-folder save/load, missing-file reporting and offline Slicer WAV rendering."));
         note->SetForegroundColour(wxColour(75, 83, 95));
         layout->Add(note, 0, wxLEFT | wxRIGHT | wxTOP | wxBOTTOM, 12);
 
@@ -1698,6 +1777,8 @@ private:
 
         if (updateWaveform && m_waveformEditor)
         {
+            m_autoSlicePreview.clear();
+            if (m_autoSliceStatus) m_autoSliceStatus->SetLabel(wxT("No preview"));
             wxString waveformError;
             if (!m_waveformEditor->SetSample(item, &waveformError))
             {
@@ -1826,6 +1907,251 @@ private:
         slice->rootMidiNote=m_sliceRootNote->GetValue(); slice->loopEnabled=m_sliceLoopEnabled->GetValue();
         const long modelIndex = static_cast<long>(m_sliceList->GetItemData(SelectedSliceIndex()));
         RefreshSliceList(modelIndex); LoadSliceControls(slice);
+    }
+
+    const SamplePoolItem* FindSourceById(const wxString& sourceId) const
+    {
+        for (size_t i = 0; i < m_samplePool.GetCount(); ++i)
+        {
+            const SamplePoolItem* item = m_samplePool.GetAt(i);
+            if (item && item->id == sourceId) return item;
+        }
+        return NULL;
+    }
+
+    bool BuildAutoSlicePreview(wxString* error)
+    {
+        const long selected = SelectedSampleIndex();
+        const SamplePoolItem* source = selected >= 0 ? m_samplePool.GetAt(static_cast<size_t>(selected)) : NULL;
+        if (!source) { if(error)*error=wxT("Select a Sample Pool source first."); return false; }
+        AutoSliceSettings settings;
+        settings.uniformDivisions = m_autoSliceDivisions ? m_autoSliceDivisions->GetValue() : 8;
+        settings.sensitivity = m_autoSliceSensitivity ? m_autoSliceSensitivity->GetValue() : 0.35;
+        settings.minimumGapMs = m_autoSliceGapMs ? m_autoSliceGapMs->GetValue() : 60.0;
+        bool ok = m_autoSliceMode && m_autoSliceMode->GetSelection() == 1
+            ? AutoSlicer::Uniform(*source, settings, &m_autoSlicePreview, error)
+            : AutoSlicer::Transients(*source, settings, &m_autoSlicePreview, error);
+        if (ok && m_waveformEditor) m_waveformEditor->SetAutoSlicePreview(m_autoSlicePreview);
+        if (ok && m_autoSliceStatus) m_autoSliceStatus->SetLabel(wxString::Format(wxT("%u proposed slice(s)"), m_autoSlicePreview.size() > 1 ? static_cast<unsigned int>(m_autoSlicePreview.size()-1) : 0));
+        return ok;
+    }
+
+    void OnAutoSlicePreview(wxCommandEvent&)
+    {
+        wxString error;
+        if (!BuildAutoSlicePreview(&error)) wxMessageBox(error, wxT("Auto-slicing"), wxOK | wxICON_WARNING, this);
+    }
+
+    void OnAutoSliceApply(wxCommandEvent&)
+    {
+        wxString error;
+        if (m_autoSlicePreview.size() < 2 && !BuildAutoSlicePreview(&error)) { wxMessageBox(error, wxT("Auto-slicing"), wxOK | wxICON_WARNING, this); return; }
+        const long selected = SelectedSampleIndex();
+        const SamplePoolItem* source = selected >= 0 ? m_samplePool.GetAt(static_cast<size_t>(selected)) : NULL;
+        if (!source) return;
+        unsigned int addedCount = 0;
+        for (size_t i=1;i<m_autoSlicePreview.size();++i)
+        {
+            if (m_autoSlicePreview[i] <= m_autoSlicePreview[i-1]) continue;
+            AudioSlice added;
+            if (m_sliceModel.AddFromSelection(source->id, m_autoSlicePreview[i-1], m_autoSlicePreview[i], &added, &error)) ++addedCount;
+        }
+        RefreshSliceList();
+        if (m_slicerPianoRollFrame) m_slicerPianoRollFrame->RefreshSlices();
+        if (m_autoSliceStatus) m_autoSliceStatus->SetLabel(wxString::Format(wxT("Applied %u slice(s)"), addedCount));
+        AppendLog(wxString::Format(wxT("Auto-slicing applied %u slice(s) to %s."), addedCount, source->displayName.c_str()));
+    }
+
+    void OnAutoSliceClear(wxCommandEvent&)
+    {
+        m_autoSlicePreview.clear();
+        if (m_waveformEditor) m_waveformEditor->ClearAutoSlicePreview();
+        if (m_autoSliceStatus) m_autoSliceStatus->SetLabel(wxT("No preview"));
+    }
+
+
+    wxString ProjectEscape(const wxString& value) const
+    {
+        wxString r = value;
+        r.Replace(wxT("%"), wxT("%25"));
+        r.Replace(wxT("|"), wxT("%7C"));
+        r.Replace(wxT("\r"), wxT("%0D"));
+        r.Replace(wxT("\n"), wxT("%0A"));
+        return r;
+    }
+
+    wxString ProjectUnescape(const wxString& value) const
+    {
+        wxString r = value;
+        r.Replace(wxT("%0A"), wxT("\n"));
+        r.Replace(wxT("%0D"), wxT("\r"));
+        r.Replace(wxT("%7C"), wxT("|"));
+        r.Replace(wxT("%25"), wxT("%"));
+        return r;
+    }
+
+    SlicerPianoRollFrame* EnsureSlicerPianoRoll()
+    {
+        if (!m_slicerPianoRollFrame)
+            m_slicerPianoRollFrame = new SlicerPianoRollFrame(
+                this, &m_sliceModel, &m_samplePool, &m_sampleEngine);
+        m_slicerPianoRollFrame->RefreshSlices();
+        return m_slicerPianoRollFrame;
+    }
+
+    bool SaveProjectFolder(const wxString& folder, wxString* error)
+    {
+        wxFileName::Mkdir(folder, 0777, wxPATH_MKDIR_FULL);
+        const wxString audioFolder = wxFileName(folder, wxT("audio")).GetFullPath();
+        wxFileName::Mkdir(audioFolder, 0777, wxPATH_MKDIR_FULL);
+
+        ApplyEditor(false);
+        m_song.voice = CurrentVoice();
+        m_song.bpm = m_bpm->GetValue();
+        wxFFile singer(wxFileName(folder, wxT("singer.xml")).GetFullPath(), wxT("wb"));
+        if (!singer.IsOpened() || !singer.Write(BuildSingingSongFileXml(m_song), wxConvUTF8))
+        { if(error)*error=wxT("Unable to write singer.xml."); return false; }
+        singer.Close();
+
+        SlicerPianoRollFrame* roll = EnsureSlicerPianoRoll();
+        wxString manifest = wxT("FVSPROJECT|1\n");
+        manifest += wxString::Format(wxT("BPM|%.10g\n"), roll->GetBpm());
+        for (size_t i=0;i<m_samplePool.GetCount();++i)
+        {
+            const SamplePoolItem* item=m_samplePool.GetAt(i); if(!item)continue;
+            const wxString fileName=item->id+wxT(".wav");
+            const wxString dest=wxFileName(audioFolder,fileName).GetFullPath();
+            wxFileName sourceName(item->filePath);
+            wxFileName destinationName(dest);
+            sourceName.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
+            destinationName.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
+            if (sourceName.GetFullPath().CmpNoCase(destinationName.GetFullPath()) != 0)
+            {
+                if (!wxCopyFile(item->filePath, dest, true))
+                { if(error)*error=wxT("Unable to copy source WAV: ")+item->filePath; return false; }
+            }
+            manifest += wxT("SOURCE|")+ProjectEscape(item->id)+wxT("|")+ProjectEscape(fileName)+wxT("|")+ProjectEscape(item->displayName)+wxT("|")+
+                (item->generatedByFestival?wxT("1"):wxT("0"))+wxT("|")+wxString::Format(wxT("%d|%.10g|%.10g|"),item->sourceEventIndex,item->sourceBeats,item->sourceBpm)+
+                ProjectEscape(item->sourcePitch)+wxT("|")+ProjectEscape(item->sourcePhoneme)+wxT("|")+ProjectEscape(item->sourceVoice)+wxT("\n");
+        }
+        const std::vector<AudioSlice>& slices=m_sliceModel.Items();
+        for(size_t i=0;i<slices.size();++i){const AudioSlice& x=slices[i];manifest+=wxT("SLICE|")+ProjectEscape(x.id)+wxT("|")+ProjectEscape(x.sourceId)+wxT("|")+ProjectEscape(x.name)+wxT("|")+wxString::Format(wxT("%llu|%llu|%llu|%llu|%d|%d\n"),x.startFrame,x.loopInFrame,x.loopOutFrame,x.endFrame,x.rootMidiNote,x.loopEnabled?1:0);}
+        const std::vector<SliceRollEvent>& events=roll->Events();
+        for(size_t i=0;i<events.size();++i){const SliceRollEvent& e=events[i];manifest+=wxT("EVENT|")+ProjectEscape(e.id)+wxT("|")+ProjectEscape(e.sliceId)+wxT("|")+wxString::Format(wxT("%d|%ld|%ld|%d\n"),e.midiNote,e.startTick,e.durationTicks,e.velocity);}
+        wxFFile out(wxFileName(folder,wxT("project.fvsp")).GetFullPath(),wxT("wb"));
+        if(!out.IsOpened()||!out.Write(manifest,wxConvUTF8)){if(error)*error=wxT("Unable to write project.fvsp.");return false;} out.Close();
+        return true;
+    }
+
+    bool LoadProjectFolder(const wxString& folder, wxString* error, wxString* warnings)
+    {
+        wxString text; wxFFile in(wxFileName(folder,wxT("project.fvsp")).GetFullPath(),wxT("rb"));
+        if(!in.IsOpened()||!in.ReadAll(&text,wxConvUTF8)){if(error)*error=wxT("project.fvsp was not found or cannot be read.");return false;}
+        SingingSong loadedSong; wxString singerXml; wxFFile sf(wxFileName(folder,wxT("singer.xml")).GetFullPath(),wxT("rb"));
+        if(sf.IsOpened()&&sf.ReadAll(&singerXml,wxConvUTF8)){wxString parseError;if(!ParseSingingSongFileXml(singerXml,&loadedSong,&parseError)){if(error)*error=wxT("Invalid singer.xml: ")+parseError;return false;}}
+        else loadedSong=m_song;
+
+        m_sampleEngine.StopAll(); m_samplePool.Clear(); m_sliceModel.Items().clear(); std::vector<SliceRollEvent> events; double projectBpm=120.0;
+        wxArrayString lines=wxSplit(text,wxT('\n'));
+        for(size_t li=0;li<lines.GetCount();++li)
+        {
+            wxArrayString f=wxSplit(lines[li],wxT('|')); if(f.GetCount()==0)continue;
+            if(f[0]==wxT("BPM")&&f.GetCount()>1)f[1].ToDouble(&projectBpm);
+            else if(f[0]==wxT("SOURCE")&&f.GetCount()>=11)
+            {
+                const wxString id=ProjectUnescape(f[1]), path=wxFileName(wxFileName(folder,wxT("audio")).GetFullPath(),ProjectUnescape(f[2])).GetFullPath();
+                if(!wxFileExists(path)){if(warnings)*warnings+=wxT("Missing WAV: ")+path+wxT("\n");continue;}
+                SamplePoolItem added; wxString addError; if(!m_samplePool.AddWav(path,&added,&addError)){if(warnings)*warnings+=addError+wxT("\n");continue;}
+                SamplePoolItem* item=m_samplePool.GetAtMutable(m_samplePool.GetCount()-1); item->id=id; item->displayName=ProjectUnescape(f[3]); item->generatedByFestival=f[4]==wxT("1");
+                long idx=-1;f[5].ToLong(&idx);item->sourceEventIndex=static_cast<int>(idx);f[6].ToDouble(&item->sourceBeats);f[7].ToDouble(&item->sourceBpm);item->sourcePitch=ProjectUnescape(f[8]);item->sourcePhoneme=ProjectUnescape(f[9]);item->sourceVoice=ProjectUnescape(f[10]);
+            }
+            else if(f[0]==wxT("SLICE")&&f.GetCount()>=10)
+            {
+                AudioSlice x;x.id=ProjectUnescape(f[1]);x.sourceId=ProjectUnescape(f[2]);x.name=ProjectUnescape(f[3]);wxULongLong_t a=0,b=0,c=0,d=0;f[4].ToULongLong(&a);f[5].ToULongLong(&b);f[6].ToULongLong(&c);f[7].ToULongLong(&d);x.startFrame=a;x.loopInFrame=b;x.loopOutFrame=c;x.endFrame=d;long n=60,l=1;f[8].ToLong(&n);f[9].ToLong(&l);x.rootMidiNote=static_cast<int>(n);x.loopEnabled=l!=0;m_sliceModel.Items().push_back(x);
+            }
+            else if(f[0]==wxT("EVENT")&&f.GetCount()>=7)
+            {
+                SliceRollEvent e;e.id=ProjectUnescape(f[1]);e.sliceId=ProjectUnescape(f[2]);long n=60,v=100;f[3].ToLong(&n);f[4].ToLong(&e.startTick);f[5].ToLong(&e.durationTicks);f[6].ToLong(&v);e.midiNote=static_cast<int>(n);e.velocity=static_cast<int>(v);events.push_back(e);
+            }
+        }
+        m_song=loadedSong;m_voice->SetValue(m_song.voice);m_bpm->SetValue(m_song.bpm);m_selectedIndex=m_song.events.empty()?-1:0;
+        SlicerPianoRollFrame* roll=EnsureSlicerPianoRoll();roll->SetEvents(events);roll->SetBpm(projectBpm);
+        RefreshAll();RefreshSampleList(m_samplePool.GetCount()?0:-1);RefreshSliceList();roll->RefreshSlices();return true;
+    }
+
+    void OnProjectSaveFolder(wxCommandEvent&)
+    {
+        wxDirDialog d(this, wxT("Choose or create the FestivalVirtualSinger project folder"));
+        if (d.ShowModal() != wxID_OK)
+            return;
+        wxString error;
+        if (!SaveProjectFolder(d.GetPath(), &error))
+            wxMessageBox(error, wxT("Save Project"), wxOK | wxICON_ERROR, this);
+        else
+            wxMessageBox(wxT("Project folder saved successfully."),
+                         wxT("Save Project"), wxOK | wxICON_INFORMATION, this);
+    }
+
+    void OnProjectOpenFolder(wxCommandEvent&)
+    {
+        wxDirDialog d(this,wxT("Open FestivalVirtualSinger project folder")); if(d.ShowModal()!=wxID_OK)return;
+        wxString error,warnings;if(!LoadProjectFolder(d.GetPath(),&error,&warnings))wxMessageBox(error,wxT("Open Project"),wxOK|wxICON_ERROR,this);else if(!warnings.empty())wxMessageBox(wxT("Project opened with warnings:\n\n")+warnings,wxT("Missing files"),wxOK|wxICON_WARNING,this);
+    }
+
+    void OnProjectRenderWav(wxCommandEvent&)
+    {
+        SlicerPianoRollFrame* roll=EnsureSlicerPianoRoll(); wxFileDialog d(this,wxT("Render Slicer Piano Roll"),wxEmptyString,wxT("slicer_mix.wav"),wxT("WAV audio (*.wav)|*.wav"),wxFD_SAVE|wxFD_OVERWRITE_PROMPT);if(d.ShowModal()!=wxID_OK)return;
+        wxString path=d.GetPath();if(wxFileName(path).GetExt().IsEmpty())path+=wxT(".wav");wxString error;if(!roll->ExportWav(path,&error))wxMessageBox(error,wxT("Render Slicer WAV"),wxOK|wxICON_ERROR,this);else wxMessageBox(wxT("Slicer WAV rendered successfully."),wxT("Render Slicer WAV"),wxOK|wxICON_INFORMATION,this);
+    }
+
+    void OnSliceNoteOn(wxCommandEvent&)
+    {
+        AudioSlice* slice = SelectedSlice();
+        if (!slice)
+        {
+            wxMessageBox(wxT("Select a slice first."), wxT("Slice audition"),
+                         wxOK | wxICON_INFORMATION, this);
+            return;
+        }
+        const SamplePoolItem* source = FindSourceById(slice->sourceId);
+        if (!source)
+        {
+            wxMessageBox(wxT("The source WAV for this slice is unavailable."),
+                         wxT("Slice audition"), wxOK | wxICON_WARNING, this);
+            return;
+        }
+        wxString error;
+        const SampleEngine::PlayMode mode =
+            m_playMode->GetSelection() == 1 ? SampleEngine::ModeLegato : SampleEngine::ModeRetrigger;
+        if (!m_sampleEngine.NoteOn(*source, *slice, m_auditionNote->GetValue(), mode, &error))
+        {
+            wxMessageBox(error, wxT("Audio engine"), wxOK | wxICON_ERROR, this);
+            return;
+        }
+        m_engineStatus->SetLabel(wxString::Format(
+            wxT("Playing %s at MIDI %d (%s)"), slice->name.c_str(),
+            m_auditionNote->GetValue(),
+            mode == SampleEngine::ModeLegato ? wxT("Legato") : wxT("Retrigger")));
+    }
+
+    void OnSliceNoteOff(wxCommandEvent&)
+    {
+        m_sampleEngine.NoteOff();
+        m_engineStatus->SetLabel(wxT("Note Off requested"));
+    }
+
+    void OnSliceStopAll(wxCommandEvent&)
+    {
+        m_sampleEngine.StopAll();
+        m_engineStatus->SetLabel(wxT("Engine stopped"));
+    }
+
+    void OnOpenSlicerPianoRoll(wxCommandEvent&)
+    {
+        EnsureSlicerPianoRoll();
+        m_slicerPianoRollFrame->RefreshSlices();
+        m_slicerPianoRollFrame->Show(true);
+        m_slicerPianoRollFrame->Raise();
     }
 
     void OnSampleImport(wxCommandEvent&)
@@ -2001,6 +2327,8 @@ private:
         }
 
         m_tonePreview.Stop();
+        m_sampleEngine.StopAll();
+        m_sampleEngine.Shutdown();
         PlaySoundW(NULL, NULL, 0);
         m_festival.Shutdown();
         event.Skip();
@@ -2050,8 +2378,19 @@ private:
     wxTextCtrl* m_sliceEnd;
     wxSpinCtrl* m_sliceRootNote;
     wxCheckBox* m_sliceLoopEnabled;
+    wxSpinCtrl* m_auditionNote;
+    wxChoice* m_playMode;
+    wxStaticText* m_engineStatus;
+    wxChoice* m_autoSliceMode;
+    wxSpinCtrl* m_autoSliceDivisions;
+    wxSpinCtrlDouble* m_autoSliceSensitivity;
+    wxSpinCtrlDouble* m_autoSliceGapMs;
+    wxStaticText* m_autoSliceStatus;
+    std::vector<unsigned long long> m_autoSlicePreview;
     SamplePool m_samplePool;
     SliceModel m_sliceModel;
+    SampleEngine m_sampleEngine;
+    SlicerPianoRollFrame* m_slicerPianoRollFrame;
     std::vector<PendingFestivalRender> m_pendingFestivalRenders;
 
     TonePreview m_tonePreview;

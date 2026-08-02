@@ -1,0 +1,7 @@
+Persistence and audio regression
+--------------------------------
+32. Save the project folder with edited events, close/reopen it and confirm the final event state is restored.
+33. Confirm selection state itself is not required to persist across project reload.
+34. Play overlapping events and confirm realtime polyphony and velocity remain correct.
+35. Render the Slicer Piano Roll and confirm offline polyphony and velocity remain correct.
+36. Confirm normal and loop playback, BPM, playhead and Stop still work.

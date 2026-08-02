@@ -1,4 +1,4 @@
-﻿#include "waveform_editor.h"
+#include "waveform_editor.h"
 
 #include <wx/button.h>
 #include <wx/dcbuffer.h>
@@ -191,6 +191,7 @@ public:
         m_showPlayhead = false;
         m_playheadFrame = 0;
         m_showSliceMarkers = false;
+        m_autoSliceBoundaries.clear();
         Refresh();
     }
 
@@ -296,6 +297,18 @@ public:
         Refresh();
     }
 
+    void SetAutoSlicePreview(const std::vector<unsigned long long>& boundaries)
+    {
+        m_autoSliceBoundaries = boundaries;
+        Refresh();
+    }
+
+    void ClearAutoSlicePreview()
+    {
+        m_autoSliceBoundaries.clear();
+        Refresh();
+    }
+
 private:
     unsigned long long EffectiveVisibleFrames() const
     {
@@ -385,6 +398,16 @@ private:
             const int top = centreY - static_cast<int>(maximum * (height * 0.44));
             const int bottom = centreY - static_cast<int>(minimum * (height * 0.44));
             dc.DrawLine(x, top, x, bottom);
+        }
+
+        if (!m_autoSliceBoundaries.empty())
+        {
+            dc.SetPen(wxPen(wxColour(32, 160, 150), 1, wxPENSTYLE_SHORT_DASH));
+            for (size_t i = 0; i < m_autoSliceBoundaries.size(); ++i)
+            {
+                const int x = FrameToX(m_autoSliceBoundaries[i]);
+                dc.DrawLine(x, 0, x, height);
+            }
         }
 
         if (m_showSliceMarkers)
@@ -485,6 +508,7 @@ private:
     unsigned long long m_loopIn;
     unsigned long long m_loopOut;
     unsigned long long m_sliceEnd;
+    std::vector<unsigned long long> m_autoSliceBoundaries;
 };
 
 WaveformEditorPanel::WaveformEditorPanel(wxWindow* parent, wxWindowID id)
@@ -562,6 +586,16 @@ void WaveformEditorPanel::SetSliceMarkers(bool visible, unsigned long long start
                                               unsigned long long endFrame)
 {
     if (m_canvas) m_canvas->SetSliceMarkers(visible, startFrame, loopInFrame, loopOutFrame, endFrame);
+}
+
+void WaveformEditorPanel::SetAutoSlicePreview(const std::vector<unsigned long long>& boundaries)
+{
+    if (m_canvas) m_canvas->SetAutoSlicePreview(boundaries);
+}
+
+void WaveformEditorPanel::ClearAutoSlicePreview()
+{
+    if (m_canvas) m_canvas->ClearAutoSlicePreview();
 }
 
 void WaveformEditorPanel::StopPlayback()

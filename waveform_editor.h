@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "sample_pool.h"
 
@@ -26,6 +26,8 @@ public:
                          unsigned long long loopInFrame,
                          unsigned long long loopOutFrame,
                          unsigned long long endFrame);
+    void SetAutoSlicePreview(const std::vector<unsigned long long>& boundaries);
+    void ClearAutoSlicePreview();
 
     bool HasSelection() const;
     unsigned long long GetSelectionStartFrame() const;

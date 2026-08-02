@@ -65,6 +65,7 @@ public:
 
     size_t GetCount() const;
     const SamplePoolItem* GetAt(size_t index) const;
+    SamplePoolItem* GetAtMutable(size_t index);
 
 private:
     bool ReadWavMetadata(const wxString& filePath,
