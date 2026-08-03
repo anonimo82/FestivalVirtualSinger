@@ -1,3 +1,5 @@
+Download the Singer.zip archive to have a quick run of the application
+
 # Festival Sing Mode Frontend
 
 A native Windows frontend for creating and playing simple sung phoneme sequences with the Festival Speech Synthesis System.
