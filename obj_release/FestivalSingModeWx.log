@@ -1,34 +1,46 @@
-﻿Build started 02/08/2026 05:41:24.
-     1>Project "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\FestivalSingModeWx.vcxproj" on node 2 (Build target(s)).
+﻿Build started 04/08/2026 12:44:07.
+     1>Project "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.vcxproj" on node 2 (Rebuild target(s)).
      1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\wxWidgets\include\msvc" /I"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\wxWidgets\include" /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D WIN32 /D NDEBUG /D _WINDOWS /D __WXMSW__ /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /D _UNICODE /D UNICODE /Gm- /EHsc /MT /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\\" /Fd"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp offline_renderer.cpp slicer_piano_roll.cpp
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\include\msvc" /I"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\include" /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D WIN32 /D NDEBUG /D _WINDOWS /D __WXMSW__ /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /D _UNICODE /D UNICODE /Gm- /EHsc /MT /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\\" /Fd"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt main.cpp event_timing.cpp festival_bridge.cpp piano_roll.cpp song_model.cpp tone_preview.cpp sample_pool.cpp waveform_editor.cpp slice_model.cpp sample_engine.cpp slicer_piano_roll.cpp auto_slicer.cpp offline_renderer.cpp
          main.cpp
-         offline_renderer.cpp
+         event_timing.cpp
+         festival_bridge.cpp
+         piano_roll.cpp
+         song_model.cpp
+         tone_preview.cpp
+         sample_pool.cpp
+         waveform_editor.cpp
+         slice_model.cpp
+         sample_engine.cpp
          slicer_piano_roll.cpp
      1>slicer_piano_roll.cpp(231): warning C4996: 'wxPen::wxPen': deprecated: use wxPENSTYLE_XXX constants
-                 C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\wxWidgets\include\wx/msw/pen.h(63) : see declaration of 'wxPen::wxPen'
+                 C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\include\wx/msw/pen.h(63) : see declaration of 'wxPen::wxPen'
      1>slicer_piano_roll.cpp(250): warning C4996: 'wxPen::wxPen': deprecated: use wxPENSTYLE_XXX constants
-                 C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\wxWidgets\include\wx/msw/pen.h(63) : see declaration of 'wxPen::wxPen'
+                 C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\include\wx/msw/pen.h(63) : see declaration of 'wxPen::wxPen'
+         auto_slicer.cpp
+         offline_renderer.cpp
+       ResourceCompile:
+         C:\Program Files (x86)\Windows Kits\8.1\bin\x86\rc.exe /D _UNICODE /D UNICODE /l"0x0409" /nologo /fo"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\FestivalSingModeWx.res" FestivalSingModeWx.rc 
        Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\FestivalSingModeWx.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\wxWidgets\lib\vc_lib" comctl32.lib rpcrt4.lib winmm.lib wsock32.lib oleacc.lib uxtheme.lib version.lib shlwapi.lib ole32.lib oleaut32.lib uuid.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /manifestinput:app.manifest /DEBUG /PDB:"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\FestivalSingModeWx.pdb" /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\FestivalSingModeWx.lib" /MACHINE:X86 /SAFESEH "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\FestivalSingModeWx.res"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\main.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\event_timing.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\festival_bridge.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\piano_roll.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\song_model.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\tone_preview.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\sample_pool.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\waveform_editor.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\slice_model.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\sample_engine.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\slicer_piano_roll.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\auto_slicer.obj"
-         "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\obj_release\offline_renderer.obj"
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\wxWidgets\lib\vc_lib" comctl32.lib rpcrt4.lib winmm.lib wsock32.lib oleacc.lib uxtheme.lib version.lib shlwapi.lib ole32.lib oleaut32.lib uuid.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /manifestinput:app.manifest /DEBUG /PDB:"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.pdb" /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.lib" /MACHINE:X86 /SAFESEH "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\FestivalSingModeWx.res"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\main.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\event_timing.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\festival_bridge.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\piano_roll.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\song_model.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\tone_preview.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\sample_pool.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\waveform_editor.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\slice_model.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\sample_engine.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\slicer_piano_roll.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\auto_slicer.obj"
+         "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\obj_release\offline_renderer.obj"
          Generating code
          Finished generating code
-         FestivalSingModeWx.vcxproj -> C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\FestivalSingModeWx.exe
-     1>Done Building Project "C:\Users\Ivano Arrighetta\Downloads\FestivalVirtualSinger\FestivalSingModeWx.vcxproj" (Build target(s)).
+         FestivalSingModeWx.vcxproj -> C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.exe
+     1>Done Building Project "C:\Users\Ivano Arrighetta\Documents\GitHub\FestivalVirtualSinger\FestivalSingModeWx.vcxproj" (Rebuild target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:17.98
+Time Elapsed 00:00:34.95

@@ -3,18 +3,18 @@ setlocal
 
 where msbuild >nul 2>nul
 if errorlevel 1 (
-  echo ERRORE: MSBuild non trovato.
-  echo Aprire un prompt "Developer Command Prompt for VS" con toolset v120.
+  echo ERROR: MSBuild was not found.
+  echo Open a "Developer Command Prompt for VS" with the v120 toolset.
   exit /b 2
 )
 
 if not exist wxWidgets\include\wx\wx.h (
-  echo ERRORE: header wxWidgets mancanti.
+  echo ERROR: wxWidgets headers are missing.
   exit /b 3
 )
 
 if not exist wxWidgets\lib\vc_lib (
-  echo ERRORE: librerie statiche wxWidgets mancanti.
+  echo ERROR: wxWidgets static libraries are missing.
   exit /b 4
 )
 
@@ -27,7 +27,7 @@ msbuild FestivalSingModeWx.sln ^
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist FestivalSingModeWx.exe (
-  echo ERRORE: build terminata senza produrre FestivalSingModeWx.exe.
+  echo ERROR: the build finished without producing FestivalSingModeWx.exe.
   exit /b 5
 )
 

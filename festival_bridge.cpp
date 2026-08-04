@@ -720,9 +720,9 @@ namespace
         {
             const wxString voice = SanitizeFestivalVoice(value);
 
-            // Le funzioni voice_* possono restituire nil anche quando la
-            // the voice was selected successfully. The final t value
-            // forza FestivalTTSCOM a restituire S_OK.
+            // The voice_* functions may return nil even when the voice is
+            // selected successfully. The final true value forces
+            // FestivalTTSCOM to return S_OK.
             return EvalTrue(
                 wxT("(voice_") + voice + wxT(")"));
         }
