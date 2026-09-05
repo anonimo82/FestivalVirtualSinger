@@ -407,10 +407,12 @@ private:
         // wxGTK needs a substantially smaller minimum pane here.  With the
         // original Win32 values the lower waveform pane can be collapsed
         // entirely on displays with limited vertical space.
-        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 85);
+        // Keep enough height for the Sample Pool list to remain usable while
+        // still reserving a visible waveform pane on wxGTK.
+        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 165);
         splitter->SetMinimumPaneSize(60);
-        splitter->SetSashGravity(0.35);
-        splitter->SetMinSize(wxSize(-1, 185));
+        splitter->SetSashGravity(0.45);
+        splitter->SetMinSize(wxSize(-1, 245));
         layout->Add(splitter, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
         wxStaticBoxSizer* sliceBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slices"));
