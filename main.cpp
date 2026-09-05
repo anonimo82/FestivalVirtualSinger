@@ -393,14 +393,9 @@ private:
         m_sampleList->InsertColumn(5, wxT("Duration"), wxLIST_FORMAT_RIGHT, 95);
         poolLayout->Add(m_sampleList, 1, wxEXPAND);
 
-        wxStaticBoxSizer* details = new wxStaticBoxSizer(
-            wxVERTICAL, poolPanel, wxT("Selected source"));
-        m_sampleDetails = new wxStaticText(
-            poolPanel, wxID_ANY,
-            wxT("No sample selected. Import a PCM or IEEE-float WAV file."));
-        m_sampleDetails->SetForegroundColour(wxColour(75, 83, 95));
-        details->Add(m_sampleDetails, 0, wxEXPAND | wxALL, 8);
-        poolLayout->Add(details, 0, wxEXPAND | wxTOP, 8);
+        // No separate "Selected source" panel: keep the vertical space for
+        // the Sample Pool list. Selection metadata remains available through
+        // the list itself and the waveform below.
         poolPanel->SetSizer(poolLayout);
 
         m_waveformEditor = new WaveformEditorPanel(splitter);
@@ -409,10 +404,10 @@ private:
         // entirely on displays with limited vertical space.
         // Keep enough height for the Sample Pool list to remain usable while
         // still reserving a visible waveform pane on wxGTK.
-        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 165);
-        splitter->SetMinimumPaneSize(60);
-        splitter->SetSashGravity(0.45);
-        splitter->SetMinSize(wxSize(-1, 245));
+        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 205);
+        splitter->SetMinimumPaneSize(70);
+        splitter->SetSashGravity(0.52);
+        splitter->SetMinSize(wxSize(-1, 285));
         layout->Add(splitter, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
         wxStaticBoxSizer* sliceBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slices"));
@@ -1743,16 +1738,14 @@ private:
 
     void UpdateSampleDetails(bool updateWaveform = true)
     {
-        if (m_sampleDetails == NULL)
-            return;
-
         const long selected = SelectedSampleIndex();
         const SamplePoolItem* item = selected >= 0
             ? m_samplePool.GetAt(static_cast<size_t>(selected)) : NULL;
         if (!item)
         {
-            m_sampleDetails->SetLabel(
-                wxT("No sample selected. Import a PCM or IEEE-float WAV file."));
+            if (m_sampleDetails)
+                m_sampleDetails->SetLabel(
+                    wxT("No sample selected. Import a PCM or IEEE-float WAV file."));
             if (updateWaveform && m_waveformEditor)
                 m_waveformEditor->ClearSample();
             return;
@@ -1778,7 +1771,8 @@ private:
                 item->sourceVoice.c_str(),
                 item->sourceBpm);
         }
-        m_sampleDetails->SetLabel(details);
+        if (m_sampleDetails)
+            m_sampleDetails->SetLabel(details);
 
         if (updateWaveform && m_waveformEditor)
         {
