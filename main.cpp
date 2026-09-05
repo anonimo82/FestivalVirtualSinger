@@ -201,7 +201,7 @@ public:
         int widths[] = { -3, -1 };
         SetStatusWidths(2, widths);
         SetStatusText(wxT("Starting Festival..."), 0);
-        SetStatusText(wxT("Win32 / v120 / wxWidgets 3.2.11"), 1);
+        SetStatusText(wxT("Linux / CMake / wxWidgets"), 1);
 
         Bind(wxEVT_MENU, &SingModeFrame::OnNewSong, this, ID_MenuNew);
         Bind(wxEVT_MENU, &SingModeFrame::OnOpenSong, this, ID_MenuOpen);
