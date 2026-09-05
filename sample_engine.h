@@ -1,27 +1,17 @@
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-
 #pragma once
 
 #include "sample_pool.h"
 #include "slice_model.h"
 
-#include <windows.h>
-#include <mmsystem.h>
+#include <atomic>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 class SampleEngine
 {
 public:
-    enum PlayMode
-    {
-        ModeRetrigger = 0,
-        ModeLegato = 1
-    };
+    enum PlayMode { ModeRetrigger = 0, ModeLegato = 1 };
 
     SampleEngine();
     ~SampleEngine();
@@ -29,14 +19,12 @@ public:
     bool Start(unsigned int outputSampleRate, wxString* errorMessage);
     void Shutdown();
 
-    // Backward-compatible audition entry point (full velocity).
     bool NoteOn(const SamplePoolItem& source,
                 const AudioSlice& slice,
                 int midiNote,
                 PlayMode mode,
                 wxString* errorMessage);
 
-    // Realtime sequencer entry point. Returns an independent voice id.
     bool NoteOn(const SamplePoolItem& source,
                 const AudioSlice& slice,
                 int midiNote,
@@ -45,12 +33,11 @@ public:
                 unsigned long* voiceId,
                 wxString* errorMessage);
 
-    // Backward-compatible Note Off: releases the most recently started voice.
     void NoteOff();
     void NoteOff(unsigned long voiceId);
     void StopAll();
 
-    bool IsRunning() const { return m_waveOut != NULL; }
+    bool IsRunning() const { return m_running.load(); }
     bool IsVoiceActive() const;
     bool IsVoiceActive(unsigned long voiceId) const;
 
@@ -61,7 +48,6 @@ private:
         unsigned int channels;
         unsigned long long frameCount;
         std::vector<float> samples;
-
         DecodedAudio() : sampleRate(0), channels(0), frameCount(0) {}
     };
 
@@ -87,8 +73,7 @@ private:
               position(0.0), step(1.0), midiNote(60), gain(1.0f) {}
     };
 
-    static DWORD WINAPI ThreadEntry(LPVOID parameter);
-    DWORD Run();
+    void Run();
     bool OpenDevice(unsigned int outputSampleRate, wxString* errorMessage);
     void CloseDevice();
     bool DecodeWav(const SamplePoolItem& source,
@@ -106,16 +91,14 @@ private:
     const Voice* FindVoice(unsigned long voiceId) const;
     void RemoveInactiveVoices();
 
-    mutable CRITICAL_SECTION m_lock;
-    HANDLE m_thread;
-    HANDLE m_stopEvent;
-    HWAVEOUT m_waveOut;
+    mutable std::mutex m_lock;
+    std::thread m_thread;
+    std::atomic<bool> m_stopRequested;
+    std::atomic<bool> m_running;
+    void* m_pcm;
 
-    enum { OutputChannels = 2, BufferFrames = 256, BufferCount = 3, MaxVoices = 32 };
+    enum { OutputChannels = 2, BufferFrames = 256, MaxVoices = 32 };
     unsigned int m_outputSampleRate;
-    WAVEHDR m_headers[BufferCount];
-    std::vector<short> m_buffers[BufferCount];
-
     std::vector<Voice> m_voices;
     unsigned long m_nextVoiceId;
     unsigned long m_lastVoiceId;
