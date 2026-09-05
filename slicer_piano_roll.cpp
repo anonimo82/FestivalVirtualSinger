@@ -846,6 +846,18 @@ void SlicerPianoRollFrame::OnPlay(wxCommandEvent&)
     }
     if (!m_engine) return;
     m_engine->StopAll();
+
+    wxString audioError;
+    if (!m_engine->Start(44100, &audioError))
+    {
+        wxMessageBox(audioError,
+                     wxT("Slicer audio engine"),
+                     wxOK | wxICON_ERROR,
+                     this);
+        m_status->SetLabel(audioError);
+        return;
+    }
+
     m_playStartTick = std::max<long>(0, static_cast<long>(std::floor(m_startPosition->GetValue() * kPPQ + 0.5)));
     m_lastTransportTick = m_playStartTick;
     m_eventStarted.assign(m_events.size(), false);
