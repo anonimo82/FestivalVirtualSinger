@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 wxDEFINE_EVENT(EVT_FESTIVAL_STATUS, wxThreadEvent);
 
@@ -27,14 +28,77 @@ wxString TempSchemePath()
     wxString p=wxFileName::CreateTempFileName("festival_virtual_singer_");
     return p;
 }
-bool RunFestivalScheme(const wxString& scheme, wxString* error)
+wxString NormalizeDirectSchemeForLinux(const wxString& input)
 {
-    wxString path=TempSchemePath();
-    { std::ofstream f(path.ToStdString().c_str()); if(!f){if(error)*error="Unable to create temporary Festival script.";return false;} f<<scheme.ToStdString(); }
-    wxString cmd="festival -b "+ShellQuote(path);
-    int rc=std::system(cmd.ToUTF8().data());
+    wxString scheme = input;
+    scheme.Replace(wxT("\n@@FESTIVAL_STEP@@\n"), wxT("\n"));
+    scheme.Replace(wxT("@@FESTIVAL_STEP@@"), wxT("\n"));
+    return scheme;
+}
+
+bool RunFestivalScheme(const wxString& inputScheme, wxString* error)
+{
+    const wxString scheme = NormalizeDirectSchemeForLinux(inputScheme);
+    const wxString path = TempSchemePath();
+
+    {
+        std::ofstream f(path.ToStdString().c_str());
+        if (!f)
+        {
+            if (error) *error = "Unable to create temporary Festival script.";
+            return false;
+        }
+
+        // singing-mode.scm defines singing_init_func/singing_exit_func.
+        // Debian/Ubuntu Festival installs it on Festival's load-path, so
+        // require resolves the correct distribution-specific location.
+        f << "(require 'singing-mode)\n";
+        f << scheme.ToStdString();
+        f << "\n";
+    }
+
+    // Keep stderr/stdout in a sidecar file long enough to report the actual
+    // Festival/Scheme error to the GUI instead of only returning exit 255.
+    const wxString logPath = path + wxT(".log");
+    const wxString cmd =
+        "festival -b " + ShellQuote(path) +
+        " >" + ShellQuote(logPath) + " 2>&1";
+
+    const int rc = std::system(cmd.ToUTF8().data());
+
+    wxString details;
+    {
+        std::ifstream log(logPath.ToStdString().c_str());
+        if (log)
+        {
+            std::ostringstream ss;
+            ss << log.rdbuf();
+            details = wxString::FromUTF8(ss.str());
+            details.Trim(true);
+            details.Trim(false);
+        }
+    }
+
     wxRemoveFile(path);
-    if(rc!=0){if(error)*error=wxString::Format("Festival exited with status %d.",rc);return false;}
+    wxRemoveFile(logPath);
+
+    if (rc != 0)
+    {
+        int exitCode = rc;
+        if (WIFEXITED(rc))
+            exitCode = WEXITSTATUS(rc);
+        else if (WIFSIGNALED(rc))
+            exitCode = 128 + WTERMSIG(rc);
+
+        if (error)
+        {
+            *error = wxString::Format("Festival exited with code %d", exitCode);
+            if (!details.IsEmpty())
+                *error += wxT(": ") + details;
+        }
+        return false;
+    }
+
     return true;
 }
 wxString VoiceCommand(const wxString& voice)
