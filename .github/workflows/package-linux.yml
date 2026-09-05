@@ -1,0 +1,24 @@
+name: package-linux-port
+on:
+  push:
+    branches: [linux-cmake-port]
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare package
+        run: |
+          mkdir -p package/FestivalVirtualSinger-linux
+          cp CMakeLists.txt build-linux.sh README-LINUX.md LICENSE README.md Tutorial.md package/FestivalVirtualSinger-linux/
+          cp *.cpp *.h package/FestivalVirtualSinger-linux/
+          chmod +x package/FestivalVirtualSinger-linux/build-linux.sh
+          cd package
+          zip -r FestivalVirtualSinger-linux-cmake-port.zip FestivalVirtualSinger-linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FestivalVirtualSinger-linux-cmake-port
+          path: package/FestivalVirtualSinger-linux-cmake-port.zip
+          if-no-files-found: error
