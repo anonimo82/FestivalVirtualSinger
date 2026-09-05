@@ -1,9 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include <wx/string.h>
-#include <wx/msw/wrapwin.h>
-#include <mmsystem.h>
-#include <vector>
+#include <atomic>
+#include <mutex>
+#include <thread>
 
 class TonePreview
 {
@@ -11,8 +11,6 @@ public:
     TonePreview();
     ~TonePreview();
 
-    // Plays a pure sine tone directly through waveOut.
-    // No Festival voice, phoneme, WAV file, or external player is involved.
     bool Play(const wxString& pitch, double beats, double bpm);
     void Stop();
 
@@ -21,9 +19,10 @@ private:
     TonePreview& operator=(const TonePreview&);
 
     bool OpenAndWrite(double frequency, double durationSeconds);
+    void Worker(double frequency, double durationSeconds);
 
-    HWAVEOUT m_waveOut;
-    WAVEHDR m_header;
-    std::vector<short> m_samples;
-    bool m_prepared;
+    std::mutex m_mutex;
+    std::thread m_thread;
+    std::atomic<bool> m_stopRequested;
+    void* m_pcm;
 };
