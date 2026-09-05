@@ -1,150 +1,34 @@
-﻿#include "tone_preview.h"
+#include "tone_preview.h"
 #include "song_model.h"
-
+#include <alsa/asoundlib.h>
 #include <algorithm>
 #include <cmath>
-#include <cstring>
+#include <vector>
 
-namespace
-{
-    const double PI_VALUE = 3.14159265358979323846;
-
-    double MidiFrequency(int midi)
-    {
-        return 440.0 * std::pow(2.0, (static_cast<double>(midi) - 69.0) / 12.0);
-    }
-
-    double Clamp(double value, double minimum, double maximum)
-    {
-        return std::max(minimum, std::min(maximum, value));
-    }
+namespace {
+const double PI_VALUE=3.14159265358979323846;
+double MidiFrequency(int midi){return 440.0*std::pow(2.0,(midi-69.0)/12.0);}
+double Clamp(double v,double a,double b){return std::max(a,std::min(b,v));}
 }
 
-TonePreview::TonePreview()
-    : m_waveOut(NULL),
-      m_prepared(false)
+TonePreview::TonePreview():m_stopRequested(false),m_pcm(NULL){}
+TonePreview::~TonePreview(){Stop();}
+bool TonePreview::Play(const wxString& pitch,double beats,double bpm)
 {
-    std::memset(&m_header, 0, sizeof(m_header));
+    double safe=bpm>1?bpm:120, duration=std::max(0.0625,beats)*60.0/safe;
+    return OpenAndWrite(MidiFrequency(PitchToMidi(pitch)),Clamp(duration,.08,.65));
 }
-
-TonePreview::~TonePreview()
+void TonePreview::Stop(){m_stopRequested=true;if(m_thread.joinable())m_thread.join();m_stopRequested=false;m_pcm=NULL;}
+bool TonePreview::OpenAndWrite(double f,double d){Stop();m_stopRequested=false;m_thread=std::thread(&TonePreview::Worker,this,f,d);return true;}
+void TonePreview::Worker(double frequency,double duration)
 {
-    Stop();
-}
-
-bool TonePreview::Play(const wxString& pitch, double beats, double bpm)
-{
-    const int midi = PitchToMidi(pitch);
-    const double frequency = MidiFrequency(midi);
-
-    const double safeBpm = bpm > 1.0 ? bpm : 120.0;
-    const double musicalDuration = std::max(0.0625, beats) * 60.0 / safeBpm;
-
-    // Editing feedback must remain immediate and must not occupy the audio
-    // device for the entire note when a long event is being resized.
-    const double previewDuration = Clamp(musicalDuration, 0.08, 0.65);
-
-    return OpenAndWrite(frequency, previewDuration);
-}
-
-void TonePreview::Stop()
-{
-    if (m_waveOut == NULL)
-        return;
-
-    waveOutReset(m_waveOut);
-
-    if (m_prepared)
-    {
-        waveOutUnprepareHeader(m_waveOut, &m_header, sizeof(m_header));
-        m_prepared = false;
-    }
-
-    waveOutClose(m_waveOut);
-    m_waveOut = NULL;
-    m_samples.clear();
-    std::memset(&m_header, 0, sizeof(m_header));
-}
-
-bool TonePreview::OpenAndWrite(double frequency, double durationSeconds)
-{
-    Stop();
-
-    const DWORD sampleRate = 22050;
-    const size_t sampleCount = static_cast<size_t>(
-        std::max(1.0, durationSeconds * static_cast<double>(sampleRate)));
-
-    m_samples.resize(sampleCount);
-
-    const double attackSeconds = std::min(0.015, durationSeconds * 0.25);
-    const double releaseSeconds = std::min(0.035, durationSeconds * 0.35);
-    const size_t attackSamples = static_cast<size_t>(attackSeconds * sampleRate);
-    const size_t releaseSamples = static_cast<size_t>(releaseSeconds * sampleRate);
-    const double amplitude = 0.22 * 32767.0;
-
-    for (size_t i = 0; i < sampleCount; ++i)
-    {
-        double envelope = 1.0;
-
-        if (attackSamples > 0 && i < attackSamples)
-            envelope = static_cast<double>(i) / attackSamples;
-
-        if (releaseSamples > 0 && i + releaseSamples >= sampleCount)
-        {
-            const size_t remaining = sampleCount - i;
-            envelope = std::min(
-                envelope,
-                static_cast<double>(remaining) / releaseSamples);
-        }
-
-        const double phase =
-            2.0 * PI_VALUE * frequency *
-            static_cast<double>(i) / sampleRate;
-
-        m_samples[i] = static_cast<short>(
-            amplitude * envelope * std::sin(phase));
-    }
-
-    WAVEFORMATEX format;
-    std::memset(&format, 0, sizeof(format));
-    format.wFormatTag = WAVE_FORMAT_PCM;
-    format.nChannels = 1;
-    format.nSamplesPerSec = sampleRate;
-    format.wBitsPerSample = 16;
-    format.nBlockAlign =
-        static_cast<WORD>(format.nChannels * format.wBitsPerSample / 8);
-    format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
-
-    MMRESULT result = waveOutOpen(
-        &m_waveOut, WAVE_MAPPER, &format, 0, 0, CALLBACK_NULL);
-
-    if (result != MMSYSERR_NOERROR)
-    {
-        m_waveOut = NULL;
-        m_samples.clear();
-        return false;
-    }
-
-    std::memset(&m_header, 0, sizeof(m_header));
-    m_header.lpData = reinterpret_cast<LPSTR>(&m_samples[0]);
-    m_header.dwBufferLength =
-        static_cast<DWORD>(m_samples.size() * sizeof(short));
-
-    result = waveOutPrepareHeader(m_waveOut, &m_header, sizeof(m_header));
-    if (result != MMSYSERR_NOERROR)
-    {
-        Stop();
-        return false;
-    }
-
-    m_prepared = true;
-    result = waveOutWrite(m_waveOut, &m_header, sizeof(m_header));
-
-    if (result != MMSYSERR_NOERROR)
-    {
-        Stop();
-        return false;
-    }
-
-    return true;
+    snd_pcm_t* pcm=NULL;if(snd_pcm_open(&pcm,"default",SND_PCM_STREAM_PLAYBACK,0)<0)return;
+    {std::lock_guard<std::mutex>lock(m_mutex);m_pcm=pcm;}
+    const unsigned rate=22050;
+    if(snd_pcm_set_params(pcm,SND_PCM_FORMAT_S16_LE,SND_PCM_ACCESS_RW_INTERLEAVED,1,rate,1,50000)<0){snd_pcm_close(pcm);m_pcm=NULL;return;}
+    const size_t count=static_cast<size_t>(std::max(1.0,duration*rate));std::vector<short>s(count);
+    size_t attack=static_cast<size_t>(std::min(.015,duration*.25)*rate),release=static_cast<size_t>(std::min(.035,duration*.35)*rate);
+    for(size_t i=0;i<count;++i){double env=1;if(attack&&i<attack)env=double(i)/attack;if(release&&i+release>=count)env=std::min(env,double(count-i)/release);s[i]=static_cast<short>(.22*32767.0*env*std::sin(2*PI_VALUE*frequency*i/rate));}
+    size_t pos=0;while(pos<count&&!m_stopRequested){snd_pcm_sframes_t n=snd_pcm_writei(pcm,s.data()+pos,count-pos);if(n<0){n=snd_pcm_recover(pcm,static_cast<int>(n),1);if(n<0)break;}else pos+=static_cast<size_t>(n);}
+    if(m_stopRequested)snd_pcm_drop(pcm);else snd_pcm_drain(pcm);snd_pcm_close(pcm);std::lock_guard<std::mutex>lock(m_mutex);m_pcm=NULL;
 }
