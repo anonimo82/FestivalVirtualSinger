@@ -66,7 +66,7 @@ void FestivalBridge::WorkerMain()
         if(c.kind==Command_Test)scheme=VoiceCommand(c.voice)+"(SayText \"Festival connected successfully\")\n";
         else scheme=VoiceCommand(c.voice)+c.scheme+"\n";
         wxString error;bool ok=RunFestivalScheme(scheme,&error);
-        if(ok&&c.kind==Command_Render&&(!wxFileExists(c.outputPath)||wxFileName(c.outputPath).GetSize().ToULongLong()<=44)){ok=false;error="Festival did not create a valid WAV file.";}
+        if(ok&&c.kind==Command_Render&&(!wxFileExists(c.outputPath)||wxFileName(c.outputPath).GetSize().GetValue()<=44)){ok=false;error="Festival did not create a valid WAV file.";}
         if(ok)PostStatus(FestivalStatus_Ready,c.kind==Command_Render?"Audio exported: "+c.outputPath:c.label+" completed.");
         else PostStatus(FestivalStatus_Error,c.label+" failed: "+error);
     }
