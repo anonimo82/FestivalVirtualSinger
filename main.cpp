@@ -2196,19 +2196,43 @@ private:
             return;
         }
 
-        if (!wxSound::Play(item->filePath, wxSOUND_ASYNC))
+        // Preview the complete WAV through the same ALSA-backed SampleEngine
+        // used by slice audition and the Slicer Piano Roll.
+        AudioSlice previewSlice;
+        previewSlice.id = wxT("__sample_preview__");
+        previewSlice.sourceId = item->id;
+        previewSlice.name = item->displayName;
+        previewSlice.startFrame = 0;
+        previewSlice.loopInFrame = 0;
+        previewSlice.loopOutFrame = item->wav.frameCount;
+        previewSlice.endFrame = item->wav.frameCount;
+        previewSlice.rootMidiNote = 60;
+        previewSlice.loopEnabled = false;
+
+        m_sampleEngine.StopAll();
+
+        wxString error;
+        if (!m_sampleEngine.NoteOn(
+                *item,
+                previewSlice,
+                60,
+                SampleEngine::ModeRetrigger,
+                &error))
         {
-            wxMessageBox(wxT("Could not preview this WAV file."),
-                         wxT("Sample preview"), wxOK | wxICON_ERROR, this);
+            wxMessageBox(error,
+                         wxT("Sample preview"),
+                         wxOK | wxICON_ERROR,
+                         this);
             return;
         }
+
         if (m_waveformEditor)
             m_waveformEditor->StartPlayback();
     }
 
     void OnSampleStop(wxCommandEvent&)
     {
-        wxSound::Stop();
+        m_sampleEngine.StopAll();
         if (m_waveformEditor)
             m_waveformEditor->StopPlayback();
     }
@@ -2219,7 +2243,7 @@ private:
         if (selected < 0)
             return;
 
-        wxSound::Stop();
+        m_sampleEngine.StopAll();
         if (m_waveformEditor)
             m_waveformEditor->StopPlayback();
         m_samplePool.RemoveAt(static_cast<size_t>(selected));
@@ -2241,7 +2265,7 @@ private:
             return;
         }
 
-        wxSound::Stop();
+        m_sampleEngine.StopAll();
         if (m_waveformEditor)
         {
             m_waveformEditor->StopPlayback();
@@ -2327,7 +2351,7 @@ private:
         m_tonePreview.Stop();
         m_sampleEngine.StopAll();
         m_sampleEngine.Shutdown();
-        wxSound::Stop();
+        m_sampleEngine.StopAll();
         m_festival.Shutdown();
         event.Skip();
     }
