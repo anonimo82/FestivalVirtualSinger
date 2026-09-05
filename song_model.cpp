@@ -938,7 +938,7 @@ wxString BuildDirectSingingScheme(const std::vector<SingingEvent>& events,
         const wxString escapedToken =
             SchemeEscape(tokens[i].text);
         const wxString whitespace =
-            i == 0 ? wxEmptyString : wxString(wxT(" "));
+            i == 0 ? wxString() : wxString(wxT(" "));
 
         scheme << wxT("(utt.relation.append festival_direct_utt 'Token '(\"")
                << escapedToken
