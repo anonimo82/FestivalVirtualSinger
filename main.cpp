@@ -404,13 +404,17 @@ private:
         poolPanel->SetSizer(poolLayout);
 
         m_waveformEditor = new WaveformEditorPanel(splitter);
-        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 280);
-        splitter->SetMinimumPaneSize(150);
-        splitter->SetSashGravity(0.42);
+        // wxGTK needs a substantially smaller minimum pane here.  With the
+        // original Win32 values the lower waveform pane can be collapsed
+        // entirely on displays with limited vertical space.
+        splitter->SplitHorizontally(poolPanel, m_waveformEditor, 85);
+        splitter->SetMinimumPaneSize(60);
+        splitter->SetSashGravity(0.35);
+        splitter->SetMinSize(wxSize(-1, 185));
         layout->Add(splitter, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
         wxStaticBoxSizer* sliceBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slices"));
-        m_sliceList = new wxListCtrl(panel, ID_SliceList, wxDefaultPosition, wxSize(500, 150),
+        m_sliceList = new wxListCtrl(panel, ID_SliceList, wxDefaultPosition, wxSize(500, 115),
                                      wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
         m_sliceList->InsertColumn(0, wxT("Name"), wxLIST_FORMAT_LEFT, 125);
         m_sliceList->InsertColumn(1, wxT("ID"), wxLIST_FORMAT_LEFT, 135);
@@ -465,7 +469,7 @@ private:
         autoBox->Add(m_autoSliceStatus, 1, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 12);
         layout->Add(autoBox, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
-        wxStaticBoxSizer* engineBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slice audition — WinMM realtime engine"));
+        wxStaticBoxSizer* engineBox = new wxStaticBoxSizer(wxHORIZONTAL, panel, wxT("Slice audition — ALSA realtime engine"));
         engineBox->Add(Caption(panel, wxT("MIDI note")), 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
         m_auditionNote = new wxSpinCtrl(panel, wxID_ANY, wxT("60"), wxDefaultPosition, wxSize(72, -1), wxSP_ARROW_KEYS, 0, 127, 60);
         engineBox->Add(m_auditionNote, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 6);
