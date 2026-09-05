@@ -30,8 +30,6 @@
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/statline.h>
-#include <windows.h>
-#include <mmsystem.h>
 #include <algorithm>
 #include <cmath>
 
