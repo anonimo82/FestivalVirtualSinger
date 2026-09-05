@@ -30,6 +30,7 @@
 #include <wx/spinctrl.h>
 #include <wx/splitter.h>
 #include <wx/statline.h>
+#include <wx/sound.h>
 #include <algorithm>
 #include <cmath>
 
@@ -928,7 +929,7 @@ private:
         state.selectedIndex = m_selectedIndex;
         state.includesDocumentIdentity = includeDocumentIdentity;
         state.filePath =
-            includeDocumentIdentity ? m_currentFilePath : wxEmptyString;
+            includeDocumentIdentity ? m_currentFilePath : wxString();
         state.savedSong =
             includeDocumentIdentity ? m_savedSong : SingingSong();
         state.hasSavedSong =
@@ -2195,10 +2196,9 @@ private:
             return;
         }
 
-        if (!PlaySoundW(item->filePath.wc_str(), NULL,
-                        SND_FILENAME | SND_ASYNC | SND_NODEFAULT))
+        if (!wxSound::Play(item->filePath, wxSOUND_ASYNC))
         {
-            wxMessageBox(wxT("Windows could not preview this WAV file."),
+            wxMessageBox(wxT("Could not preview this WAV file."),
                          wxT("Sample preview"), wxOK | wxICON_ERROR, this);
             return;
         }
@@ -2208,7 +2208,7 @@ private:
 
     void OnSampleStop(wxCommandEvent&)
     {
-        PlaySoundW(NULL, NULL, 0);
+        wxSound::Stop();
         if (m_waveformEditor)
             m_waveformEditor->StopPlayback();
     }
@@ -2219,7 +2219,7 @@ private:
         if (selected < 0)
             return;
 
-        PlaySoundW(NULL, NULL, 0);
+        wxSound::Stop();
         if (m_waveformEditor)
             m_waveformEditor->StopPlayback();
         m_samplePool.RemoveAt(static_cast<size_t>(selected));
@@ -2241,7 +2241,7 @@ private:
             return;
         }
 
-        PlaySoundW(NULL, NULL, 0);
+        wxSound::Stop();
         if (m_waveformEditor)
         {
             m_waveformEditor->StopPlayback();
@@ -2327,7 +2327,7 @@ private:
         m_tonePreview.Stop();
         m_sampleEngine.StopAll();
         m_sampleEngine.Shutdown();
-        PlaySoundW(NULL, NULL, 0);
+        wxSound::Stop();
         m_festival.Shutdown();
         event.Skip();
     }
