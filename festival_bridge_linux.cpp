@@ -33,6 +33,12 @@ wxString NormalizeDirectSchemeForLinux(const wxString& input)
     wxString scheme = input;
     scheme.Replace(wxT("\n@@FESTIVAL_STEP@@\n"), wxT("\n"));
     scheme.Replace(wxT("@@FESTIVAL_STEP@@"), wxT("\n"));
+
+    // The Windows COM backend used (audio_mode 'shutup) before playback.
+    // Native Festival on Linux errors if shutup is requested while not in
+    // async mode, so omit it here and keep synchronous playback.
+    scheme.Replace(wxT("(audio_mode 'shutup)\n"), wxT(""));
+    scheme.Replace(wxT("(audio_mode 'shutup)"), wxT(""));
     return scheme;
 }
 
