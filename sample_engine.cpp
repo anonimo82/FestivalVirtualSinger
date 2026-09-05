@@ -30,13 +30,45 @@ SampleEngine::~SampleEngine(){ Shutdown(); }
 
 bool SampleEngine::OpenDevice(unsigned int rate, wxString* error)
 {
-    snd_pcm_t* pcm=NULL;
-    int rc=snd_pcm_open(&pcm,"default",SND_PCM_STREAM_PLAYBACK,0);
-    if(rc<0){ if(error)*error=wxString::Format("Unable to open ALSA device: %s",snd_strerror(rc)); return false; }
-    rc=snd_pcm_set_params(pcm,SND_PCM_FORMAT_S16_LE,SND_PCM_ACCESS_RW_INTERLEAVED,
-                          OutputChannels,rate,1,50000);
-    if(rc<0){ if(error)*error=wxString::Format("Unable to configure ALSA device: %s",snd_strerror(rc)); snd_pcm_close(pcm); return false; }
-    m_pcm=pcm; m_outputSampleRate=rate; return true;
+    const char* devices[] = { "default", "plug:default" };
+    snd_pcm_t* pcm = NULL;
+    int rc = -1;
+    wxString attempts;
+
+    for (size_t i = 0; i < sizeof(devices) / sizeof(devices[0]); ++i)
+    {
+        pcm = NULL;
+        rc = snd_pcm_open(&pcm, devices[i], SND_PCM_STREAM_PLAYBACK, 0);
+        if (rc < 0)
+        {
+            attempts += wxString::Format("%s: %s; ", devices[i], snd_strerror(rc));
+            continue;
+        }
+
+        rc = snd_pcm_set_params(
+            pcm,
+            SND_PCM_FORMAT_S16_LE,
+            SND_PCM_ACCESS_RW_INTERLEAVED,
+            OutputChannels,
+            rate,
+            1,
+            100000);
+
+        if (rc >= 0)
+        {
+            m_pcm = pcm;
+            m_outputSampleRate = rate;
+            return true;
+        }
+
+        attempts += wxString::Format("%s configure: %s; ", devices[i], snd_strerror(rc));
+        snd_pcm_close(pcm);
+        pcm = NULL;
+    }
+
+    if (error)
+        *error = wxT("Unable to open/configure ALSA playback device. ") + attempts;
+    return false;
 }
 void SampleEngine::CloseDevice()
 {
