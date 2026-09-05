@@ -1,7 +1,7 @@
 name: package-linux-port
 on:
   push:
-    branches: [linux-cmake-port]
+    branches: [main, linux-cmake-port]
   workflow_dispatch:
 
 jobs:
